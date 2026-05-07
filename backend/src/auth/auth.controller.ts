@@ -13,19 +13,17 @@ export class AuthController {
     private readonly usersService: UsersService,
   ) {}
 
-  private readonly cookieOptions = {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'strict',
-    maxAge: 24 * 60 * 60 * 1000, // 1 day
-  } as const;
-
   @Post('register')
   async register(@Body() createUserDto: RegisterDto, @Res({ passthrough: true }) res: Response) {
     const user = await this.usersService.create(createUserDto);
     const { access_token } = await this.authService.login(user);
     
-    res.cookie('Authentication', access_token, this.cookieOptions);
+    res.cookie('Authentication', access_token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 24 * 60 * 60 * 1000, // 1 day
+    });
 
     const { password, ...result } = user;
     return result;
@@ -41,7 +39,12 @@ export class AuthController {
 
     const { access_token } = await this.authService.login(user);
     
-    res.cookie('Authentication', access_token, this.cookieOptions);
+    res.cookie('Authentication', access_token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 24 * 60 * 60 * 1000, // 1 day
+    });
 
     return user;
   }
