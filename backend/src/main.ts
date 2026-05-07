@@ -6,6 +6,13 @@ import { ValidationPipe } from '@nestjs/common';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  const allowedOrigins = [
+    'http://localhost:5173',
+    ...((process.env.FRONTEND_URL ?? '')
+      .split(',')
+      .map((origin) => origin.trim())
+      .filter(Boolean)),
+  ];
 
   app.use(cookieParser());
   app.useGlobalPipes(new ValidationPipe({
@@ -14,7 +21,7 @@ async function bootstrap() {
     transform: true,
   }));
   app.enableCors({
-    origin: 'http://localhost:5173', // Vite default frontend port
+    origin: allowedOrigins,
     credentials: true,
   });
 
