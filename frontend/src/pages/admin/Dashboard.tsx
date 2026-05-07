@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { api } from '../../api/axios';
 import { Users, Map, Flag, Activity, ArrowUpRight } from 'lucide-react';
 import toast from 'react-hot-toast';
