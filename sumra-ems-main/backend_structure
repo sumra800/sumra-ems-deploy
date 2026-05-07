@@ -1,0 +1,361 @@
+# Sumra EMS — Complete Project Review
+
+> **E**lection **M**anagement **S**ystem · Full-Stack · NestJS + React/Vite + PostgreSQL
+
+---
+
+## 1. What Is This Project?
+
+A secure, role-based Election Management System where:
+- **Admins** create elections, register constituencies, parties, and candidates, and control the election lifecycle.
+- **Voters** log in, view candidates in their constituency, cast a single vote per election, and see results.
+
+The tech stack was chosen for scalability and type-safety end-to-end:
+
+| Layer | Technology | Why |
+|---|---|---|
+| Backend | **NestJS** (Node.js) | Opinionated, modular, TypeScript-first, great DI |
+| ORM | **TypeORM** | Works natively with NestJS, supports PostgreSQL well |
+| Database | **PostgreSQL** | Relational DB — perfect for elections with strict constraints |
+| Auth | **JWT in HTTP-only cookies** | More secure than localStorage (immune to XSS) |
+| Media | **Cloudinary** | Managed CDN for party logos and candidate photos |
+| Frontend | **React + Vite + TypeScript** | Fast dev server, small bundle, modern React |
+| Styling | **Tailwind CSS** | Utility-first, rapid UI development |
+
+---
+
+## 2. Root Folder Structure
+
+```
+c:\sumra-ems\
+├── backend/          ← NestJS API (port 3000)
+├── frontend/         ← React SPA (port 5173)
+└── .gitignore        ← Ignores node_modules, dist, .env
+```
+
+The **monorepo** approach keeps both apps in one git repo without needing a build tool like Nx — they just share the same repository but have independent `package.json` files.
+
+---
+
+## 3. Backend — Deep Dive
+
+### 3.1 Folder Structure
+
+```
+backend/src/
+├── main.ts                          ← App entry point
+├── app.module.ts                    ← Root module — wires everything together
+├── app.controller.ts / service.ts   ← Default NestJS health check
+│
+├── auth/                            ← Authentication module
+│   ├── auth.controller.ts           ← POST /auth/register, /login, /logout, GET /profile
+│   ├── auth.service.ts              ← validateUser(), login() (issues JWT)
+│   ├── auth.module.ts               ← Imports UsersModule, PassportModule, JwtModule
+│   ├── strategies/
+│   │   └── jwt.strategy.ts          ← Reads JWT from cookie, validates user
+│   ├── guards/
+│   │   ├── jwt-auth.guard.ts        ← Protects routes (must be logged in)
+│   │   └── roles.guard.ts           ← Protects routes (must have correct role)
+│   └── decorators/
+│       └── roles.decorator.ts       ← @Roles(UserRole.ADMIN) decorator
+│
+├── users/                           ← Users module
+│   ├── users.controller.ts          ← GET /users, GET /users/:id (ADMIN only)
+│   ├── users.service.ts             ← create(), findOneByCnic(), findOneById(), findAll()
+│   ├── users.module.ts              ← Registers User entity, exports UsersService
+│   ├── entities/user.entity.ts      ← User table definition
+│   └── dto/                         ← create-user.dto, update-user.dto
+│
+├── constituencies/                  ← Constituencies module
+│   ├── constituencies.controller.ts ← CRUD /constituencies (write: ADMIN, read: auth'd)
+│   ├── constituencies.service.ts    ← Full TypeORM CRUD
+│   ├── constituencies.module.ts     ← Registers Constituency entity
+│   ├── entities/constituency.entity.ts
+│   └── dto/                         ← create & update DTOs
+│
+├── parties/                         ← Parties module
+│   ├── parties.controller.ts        ← CRUD /parties
+│   ├── parties.service.ts           ← Full TypeORM CRUD + duplicate name check
+│   ├── parties.module.ts
+│   ├── entities/party.entity.ts
+│   └── dto/
+│
+├── candidates/                      ← Candidates module
+│   ├── candidates.controller.ts     ← CRUD /candidates
+│   ├── candidates.service.ts        ← TypeORM CRUD + links User, Party, Constituency
+│   ├── candidates.module.ts         ← Imports Candidate, User, Party, Constituency repos
+│   ├── entities/candidate.entity.ts
+│   └── dto/
+│
+├── elections/                       ← Elections module
+│   ├── elections.controller.ts      ← CRUD + PATCH /status + GET /results
+│   ├── elections.service.ts         ← State machine + vote tally aggregation
+│   ├── elections.module.ts
+│   ├── entities/election.entity.ts  ← Includes ElectionStatus enum
+│   └── dto/
+│
+├── votes/                           ← Voting module
+│   ├── votes.controller.ts          ← POST /votes, GET /my-votes, GET /has-voted/:id
+│   ├── votes.service.ts             ← Validates election status, prevents double voting
+│   ├── votes.module.ts
+│   ├── entities/vote.entity.ts      ← @Unique(['voter','election']) constraint
+│   └── dto/cast-vote.dto.ts
+│
+└── cloudinary/                      ← Media upload module
+    ├── cloudinary.provider.ts       ← Configures cloudinary SDK from .env
+    ├── cloudinary.service.ts        ← uploadImage(buffer) → returns CDN URL
+    └── cloudinary.module.ts         ← Exports provider + service for use elsewhere
+```
+
+---
+
+### 3.2 Key Design Decisions — Backend
+
+#### `main.ts` — The App Bootstrap
+```
+cookieParser()         → Parses HTTP-only cookies so JWT can be extracted
+ValidationPipe         → Globally validates all request bodies via class-validator
+enableCors(5173)       → Allows the Vite dev server to talk to this API
+```
+**Why cookies over `Authorization: Bearer`?** HTTP-only cookies cannot be read by JavaScript, making them immune to XSS token theft. This is the industry-standard approach for web apps.
+
+---
+
+#### `app.module.ts` — The Root Module
+This is the composition root. Every feature module must be imported here. It also sets up:
+- `ConfigModule.forRoot({ isGlobal: true })` — loads `.env` and makes `ConfigService` available everywhere without re-importing
+- `TypeOrmModule.forRootAsync()` — connects to PostgreSQL using `DATABASE_URL` from `.env` and auto-creates tables (`synchronize: true` — only in development)
+
+---
+
+#### Database Entities — Why These 6 Tables?
+
+```
+users          → Everyone in the system (admins and voters)
+constituencies → Geographic electoral divisions
+parties        → Political parties
+candidates     → A user registered as a candidate in a constituency for a party
+elections      → An election event with a lifecycle (PENDING→RUNNING→COMPLETED)
+votes          → A single vote: one voter → one candidate → one election
+```
+
+**Relationships:**
+```
+User ──────────────── Constituency  (voter belongs to one constituency)
+User ──────────────── Candidate     (a candidate IS a user, OneToOne)
+Party ─────────────── Candidate[]   (a party has many candidates)
+Constituency ──────── Candidate[]   (a constituency has many candidates)
+Election ──────────── Vote[]        (election has many votes)
+Candidate ─────────── Vote[]        (candidate receives many votes)
+User (voter) ──────── Vote[]        (voter casts many votes across elections)
+```
+
+---
+
+#### Authentication Flow
+
+```
+1. POST /auth/register  → Creates user, hashes password with bcrypt, issues JWT cookie
+2. POST /auth/login     → Validates CNIC + password, issues JWT cookie
+3. POST /auth/logout    → Clears the cookie (expires: new Date(0))
+4. GET  /auth/profile   → Returns current user from JWT (guarded)
+```
+
+**JWT Strategy** (`jwt.strategy.ts`) reads the token from `req.cookies.Authentication`, decodes it, and fetches the full user from the DB. This means every guarded request has a fresh, database-verified `req.user`.
+
+---
+
+#### Role-Based Access Control (RBAC)
+
+Two roles: `ADMIN` and `VOTER` (stored as a PostgreSQL enum on the `users` table).
+
+```typescript
+// How it works:
+@UseGuards(JwtAuthGuard, RolesGuard)   // 1. Must be logged in, 2. Must have role
+@Roles(UserRole.ADMIN)                  // The required role
+@Post()
+create(...) { ... }
+```
+
+- `JwtAuthGuard` → verifies the cookie token, puts `user` on `req`
+- `RolesGuard` → reads `@Roles()` metadata, checks `req.user.role`
+- Read endpoints (`GET`) only require `JwtAuthGuard` — both ADMIN and VOTER can view data
+
+---
+
+#### Elections — State Machine
+
+The `ElectionStatus` has a strict transition graph:
+
+```
+PENDING ──→ RUNNING ──→ PAUSED ──→ RUNNING
+                   ↘             ↘
+                    COMPLETED    COMPLETED
+```
+
+**Why?** Real elections cannot jump from PENDING to COMPLETED. Enforcing transitions in code prevents data corruption from accidental API calls.
+
+`PATCH /elections/:id/status` with `{ "status": "RUNNING" }` triggers this check.
+
+When status → `RUNNING`, `startTime` is auto-set. When → `COMPLETED`, `endTime` is auto-set.
+
+---
+
+#### Votes — Business Rules Enforced in Code
+
+Three critical rules checked in `VotesService.castVote()`:
+
+| Rule | How enforced |
+|---|---|
+| Election must be active | Check `election.status === RUNNING` |
+| Voter can only vote once per election | `@Unique(['voter','election'])` DB constraint + service-level check |
+| Voter must be in same constituency as candidate | Compare `voter.constituency.id === candidate.constituency.id` |
+
+The DB-level `@Unique` is the last line of defense (race condition safety). The service-level check gives a clear, user-friendly error message.
+
+---
+
+#### `GET /elections/:id/results`
+
+Aggregates votes from the database and returns a sorted leaderboard:
+```json
+{
+  "election": { "id": "...", "title": "General 2025", "status": "COMPLETED" },
+  "totalVotes": 1024,
+  "results": [
+    { "candidate": { "user": { "name": "Ali" }, "party": { "name": "PTI" } }, "count": 612 },
+    { "candidate": { "user": { "name": "Sara" }, "party": { "name": "PMLN" } }, "count": 412 }
+  ]
+}
+```
+
+---
+
+#### Cloudinary Module
+
+Used for storing party logos and candidate photos as CDN URLs instead of in the database or local disk.
+
+- `cloudinary.provider.ts` — configures the SDK with `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` from `.env`
+- `cloudinary.service.ts` — accepts a `Buffer`, streams it to Cloudinary, returns the CDN URL
+- Any module that needs uploads imports `CloudinaryModule`
+
+---
+
+### 3.3 `.env` Configuration
+
+```env
+DATABASE_URL=postgresql://user:password@localhost:5432/sumra_ems
+JWT_SECRET=your-very-long-random-secret
+CLOUDINARY_CLOUD_NAME=...
+CLOUDINARY_API_KEY=...
+CLOUDINARY_API_SECRET=...
+NODE_ENV=development
+PORT=3000
+```
+
+> [!CAUTION]
+> `.env` is in `.gitignore` — it must **never** be committed. Credentials stay local.
+
+---
+
+### 3.4 Complete API Surface
+
+| Method | Endpoint | Auth | Role |
+|---|---|---|---|
+| POST | `/auth/register` | ❌ | Any |
+| POST | `/auth/login` | ❌ | Any |
+| POST | `/auth/logout` | ✅ | Any |
+| GET | `/auth/profile` | ✅ | Any |
+| GET | `/users` | ✅ | ADMIN |
+| GET | `/users/:id` | ✅ | ADMIN |
+| POST | `/constituencies` | ✅ | ADMIN |
+| GET | `/constituencies` | ✅ | Any |
+| GET | `/constituencies/:id` | ✅ | Any |
+| PATCH | `/constituencies/:id` | ✅ | ADMIN |
+| DELETE | `/constituencies/:id` | ✅ | ADMIN |
+| POST | `/parties` | ✅ | ADMIN |
+| GET | `/parties` | ✅ | Any |
+| GET | `/parties/:id` | ✅ | Any |
+| PATCH | `/parties/:id` | ✅ | ADMIN |
+| DELETE | `/parties/:id` | ✅ | ADMIN |
+| POST | `/candidates` | ✅ | ADMIN |
+| GET | `/candidates` | ✅ | Any |
+| GET | `/candidates/:id` | ✅ | Any |
+| PATCH | `/candidates/:id` | ✅ | ADMIN |
+| DELETE | `/candidates/:id` | ✅ | ADMIN |
+| POST | `/elections` | ✅ | ADMIN |
+| GET | `/elections` | ✅ | Any |
+| GET | `/elections/:id` | ✅ | Any |
+| GET | `/elections/:id/results` | ✅ | Any |
+| PATCH | `/elections/:id/status` | ✅ | ADMIN |
+| PATCH | `/elections/:id` | ✅ | ADMIN |
+| DELETE | `/elections/:id` | ✅ | ADMIN |
+| POST | `/votes` | ✅ | VOTER |
+| GET | `/votes/my-votes` | ✅ | VOTER |
+| GET | `/votes/has-voted/:electionId` | ✅ | VOTER |
+
+---
+
+## 4. Frontend — Current State
+
+The React + Vite + TypeScript frontend is scaffolded with Tailwind CSS configured.
+
+```
+frontend/
+├── index.html              ← Root HTML (Vite entry point)
+├── vite.config.ts          ← Dev server on port 5173
+├── tailwind.config.js      ← Tailwind configured
+├── postcss.config.js       ← PostCSS pipeline for Tailwind
+├── src/
+│   ├── main.tsx            ← Mounts <App /> to #root
+│   ├── index.css           ← Tailwind directives (@tailwind base/components/utilities)
+│   ├── App.tsx             ← Root component (currently placeholder)
+│   └── assets/             ← Static images
+```
+
+**Status:** Foundation is ready. No pages or routing built yet.
+
+---
+
+## 5. What's Next (Frontend)
+
+```
+[ ] Install react-router-dom + axios
+[ ] Set up Axios with withCredentials: true (so cookies are sent)
+[ ] Pages:
+    ├── /login              → Login form (CNIC + password)
+    ├── /register           → Registration form
+    ├── /admin/dashboard    → Overview stats
+    ├── /admin/elections    → Create/manage elections, change status
+    ├── /admin/parties      → CRUD parties
+    ├── /admin/constituencies → CRUD constituencies
+    ├── /admin/candidates   → Register candidates
+    ├── /voter/dashboard    → Active elections in voter's constituency
+    ├── /voter/vote/:id     → Cast vote page
+    └── /results/:id        → Live/final election results
+```
+
+---
+
+## 6. Security Summary
+
+| Concern | Solution |
+|---|---|
+| Password storage | `bcrypt` with salt rounds = 10 |
+| Token security | JWT in HTTP-only cookies (not localStorage) |
+| Token expiry | 1 day |
+| Route protection | `JwtAuthGuard` on every non-public route |
+| Role enforcement | `RolesGuard` + `@Roles()` decorator |
+| Double voting | DB `@Unique` constraint + service-level check |
+| Constituency rule | Enforced in `VotesService` before insert |
+| Input validation | Global `ValidationPipe` with `whitelist: true` (strips extra fields) |
+| CORS | Restricted to `http://localhost:5173` only |
+| Secrets | Loaded from `.env`, never hardcoded (except fallback JWT secret in dev) |
+
+---
+
+## 7. Build Status
+
+```
+✅ npm run build  →  Compiled successfully, 0 errors
+```
