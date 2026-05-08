@@ -123,7 +123,7 @@ export default function AdminLayout() {
       </div>
 
       <div className="md:pl-72 flex flex-col flex-1">
-        <div className="sticky top-0 z-10 md:hidden bg-[#052e16] border-b border-white/10 px-2 py-2">
+        <div className="sticky top-0 z-10 md:hidden bg-[#052e16] border-b border-white/10 px-4 py-3 flex items-center h-20">
           <button
             type="button"
             className="h-11 w-11 inline-flex items-center justify-center rounded-md text-gray-200 hover:text-white focus:outline-none"

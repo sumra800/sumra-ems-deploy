@@ -165,7 +165,7 @@ export default function CastVote() {
         <div className="text-center py-12 bg-white rounded-lg border border-gray-200">
           <AlertTriangle className="mx-auto h-12 w-12 text-yellow-400 mb-3" />
           <h3 className="text-lg font-medium text-gray-900">No Candidates Found</h3>
-          <p className="mt-1 text-sm text-gray-500">There are no candidates registered in your constituency for this election.</p>
+          <p className="mt-1 text-sm text-gray-500">There are no candidates registered in your city for this election.</p>
         </div>
       )}
 

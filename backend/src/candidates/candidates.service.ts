@@ -53,7 +53,7 @@ export class CandidatesService {
 
   async findAll(): Promise<Candidate[]> {
     return this.candidatesRepository.find({
-      relations: ['user', 'party', 'constituency'],
+      relations: ['user', 'party', 'constituency', 'constituency.city'],
     });
   }
 
@@ -64,24 +64,30 @@ export class CandidatesService {
 
     const voter = await this.usersRepository.findOne({
       where: { id: user.id },
-      relations: ['city', 'constituency'],
+      relations: ['city', 'constituency', 'constituency.city'],
     });
 
-    if (voter?.city) {
-      return this.candidatesRepository.find({
-        where: { constituency: { city: { id: voter.city.id } } },
-        relations: ['user', 'party', 'constituency', 'constituency.city'],
-      });
-    }
-
-    if (!voter?.constituency) {
+    if (!voter) {
       return [];
     }
 
-    return this.candidatesRepository.find({
-      where: { constituency: { id: voter.constituency.id } },
-      relations: ['user', 'party', 'constituency', 'constituency.city'],
-    });
+    const voterCityId = voter.city?.id ?? voter.constituency?.city?.id;
+
+    const query = this.candidatesRepository.createQueryBuilder('candidate')
+      .leftJoinAndSelect('candidate.user', 'user')
+      .leftJoinAndSelect('candidate.party', 'party')
+      .leftJoinAndSelect('candidate.constituency', 'constituency')
+      .leftJoinAndSelect('constituency.city', 'city');
+
+    if (voterCityId) {
+      query.where('city.id = :cityId', { cityId: voterCityId });
+    } else if (voter.constituency) {
+      query.where('constituency.id = :constituencyId', { constituencyId: voter.constituency.id });
+    } else {
+      return [];
+    }
+
+    return query.getMany();
   }
 
   async findOne(id: string): Promise<Candidate> {

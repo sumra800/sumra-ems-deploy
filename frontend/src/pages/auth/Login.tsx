@@ -9,11 +9,35 @@ export default function Login() {
   const [cnic, setCnic] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [errors, setErrors] = useState<{ cnic?: string; password?: string }>({});
   const navigate = useNavigate();
   const { login } = useAuth();
 
+  const validateForm = () => {
+    const newErrors: { cnic?: string; password?: string } = {};
+
+    // CNIC validation: 12345-1234567-1 format
+    const cnicRegex = /^\d{5}-\d{7}-\d{1}$/;
+    if (!cnic.trim()) {
+      newErrors.cnic = 'CNIC is required';
+    } else if (!cnicRegex.test(cnic.trim())) {
+      newErrors.cnic = 'CNIC must be in format: 12345-1234567-1';
+    }
+
+    // Password validation
+    if (!password) {
+      newErrors.password = 'Password is required';
+    } else if (password.length < 6) {
+      newErrors.password = 'Password must be at least 6 characters';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!validateForm()) return;
     setLoading(true);
 
     try {
@@ -75,6 +99,7 @@ export default function Login() {
                 onChange={(e) => setCnic(e.target.value)}
                 className="glass-input w-full block"
               />
+              {errors.cnic && <p className="mt-1 text-sm text-red-400">{errors.cnic}</p>}
             </div>
 
             <div>
@@ -91,6 +116,7 @@ export default function Login() {
                 onChange={(e) => setPassword(e.target.value)}
                 className="glass-input w-full block"
               />
+              {errors.password && <p className="mt-1 text-sm text-red-400">{errors.password}</p>}
             </div>
 
             <div className="pt-2">

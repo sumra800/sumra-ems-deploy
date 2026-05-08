@@ -5,8 +5,8 @@ export default function Welcome() {
   return (
     <main className="min-h-screen bg-[#07110b] text-white font-sans">
       <section className="min-h-screen flex flex-col">
-        <header className="border-b border-white/10 bg-black/20">
-          <div className="mx-auto max-w-6xl px-6 py-5 flex items-center justify-between">
+        <header className="sticky top-0 z-50 border-b border-white/10 bg-black/20">
+          <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 py-5 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="h-11 w-11 rounded-full border border-white/20 bg-primary-700 flex items-center justify-center shadow-[0_0_24px_rgba(34,197,94,0.18)]">
                 <Landmark className="h-6 w-6 text-white" />

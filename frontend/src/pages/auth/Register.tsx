@@ -15,10 +15,12 @@ export default function Register() {
   const [name, setName] = useState('');
   const [cnic, setCnic] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [cityId, setCityId] = useState('');
   const [photo, setPhoto] = useState<File | null>(null);
   const [cities, setCities] = useState<City[]>([]);
   const [loading, setLoading] = useState(false);
+  const [errors, setErrors] = useState<{ name?: string; cnic?: string; password?: string; confirmPassword?: string; cityId?: string; photo?: string }>({});
   const navigate = useNavigate();
   const { login } = useAuth();
 
@@ -35,8 +37,58 @@ export default function Register() {
     fetchCities();
   }, []);
 
+  const validateForm = () => {
+    const newErrors: { name?: string; cnic?: string; password?: string; confirmPassword?: string; cityId?: string; photo?: string } = {};
+
+    // Name validation
+    if (!name.trim()) {
+      newErrors.name = 'Full name is required';
+    } else if (name.trim().length < 2) {
+      newErrors.name = 'Name must be at least 2 characters';
+    } else if (!/^[a-zA-Z\s]+$/.test(name.trim())) {
+      newErrors.name = 'Name can only contain letters and spaces';
+    }
+
+    // CNIC validation
+    const cnicRegex = /^\d{5}-\d{7}-\d{1}$/;
+    if (!cnic.trim()) {
+      newErrors.cnic = 'CNIC is required';
+    } else if (!cnicRegex.test(cnic.trim())) {
+      newErrors.cnic = 'CNIC must be in format: 12345-1234567-1';
+    }
+
+    // Password validation
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[a-zA-Z\d]{8,}$/;
+    if (!password) {
+      newErrors.password = 'Password is required';
+    } else if (!passwordRegex.test(password)) {
+      newErrors.password = 'Password must be at least 8 characters with uppercase, lowercase, and number';
+    }
+
+    // Confirm password
+    if (!confirmPassword) {
+      newErrors.confirmPassword = 'Please confirm your password';
+    } else if (password !== confirmPassword) {
+      newErrors.confirmPassword = 'Passwords do not match';
+    }
+
+    // City validation
+    if (!cityId) {
+      newErrors.cityId = 'Please select your city';
+    }
+
+    // Photo validation
+    if (!photo) {
+      newErrors.photo = 'Profile picture is required';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!validateForm()) return;
     setLoading(true);
 
     try {
@@ -104,6 +156,7 @@ export default function Register() {
                 onChange={(e) => setName(e.target.value)}
                 className="glass-input w-full block"
               />
+              {errors.name && <p className="mt-1 text-sm text-red-400">{errors.name}</p>}
             </div>
 
             <div>
@@ -120,6 +173,7 @@ export default function Register() {
                 onChange={(e) => setCnic(e.target.value)}
                 className="glass-input w-full block"
               />
+              {errors.cnic && <p className="mt-1 text-sm text-red-400">{errors.cnic}</p>}
             </div>
 
             <div>
@@ -136,6 +190,24 @@ export default function Register() {
                 onChange={(e) => setPassword(e.target.value)}
                 className="glass-input w-full block"
               />
+              {errors.password && <p className="mt-1 text-sm text-red-400">{errors.password}</p>}
+            </div>
+
+            <div>
+              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-300 mb-1.5">
+                Confirm Password
+              </label>
+              <input
+                id="confirmPassword"
+                name="confirmPassword"
+                type="password"
+                required
+                placeholder="••••••••"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                className="glass-input w-full block"
+              />
+              {errors.confirmPassword && <p className="mt-1 text-sm text-red-400">{errors.confirmPassword}</p>}
             </div>
 
             <div>
@@ -155,6 +227,7 @@ export default function Register() {
                   <option key={city.id} value={city.id}>{city.name} ({city.province})</option>
                 ))}
               </select>
+              {errors.cityId && <p className="mt-1 text-sm text-red-400">{errors.cityId}</p>}
             </div>
 
             <div>
@@ -170,6 +243,7 @@ export default function Register() {
                 onChange={(e) => setPhoto(e.target.files?.[0] ?? null)}
                 className="glass-input w-full block file:mr-4 file:rounded-lg file:border-0 file:bg-primary-600 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-primary-500"
               />
+              {errors.photo && <p className="mt-1 text-sm text-red-400">{errors.photo}</p>}
             </div>
 
             <div className="pt-2">
