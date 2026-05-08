@@ -2,6 +2,7 @@ import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateCol
 import { Constituency } from '../../constituencies/entities/constituency.entity';
 import { Candidate } from '../../candidates/entities/candidate.entity';
 import { Vote } from '../../votes/entities/vote.entity';
+import { City } from '../../cities/entities/city.entity';
 
 export enum UserRole {
   ADMIN = 'ADMIN',
@@ -22,6 +23,9 @@ export class User {
   @Column()
   password: string;
 
+  @Column({ nullable: true })
+  photoUrl: string;
+
   @Column({
     type: 'enum',
     enum: UserRole,
@@ -31,6 +35,9 @@ export class User {
 
   @ManyToOne(() => Constituency, constituency => constituency.users, { nullable: true })
   constituency: Constituency;
+
+  @ManyToOne(() => City, city => city.users, { nullable: true })
+  city: City;
 
   @OneToOne(() => Candidate, candidate => candidate.user)
   candidate: Candidate;

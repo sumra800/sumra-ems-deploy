@@ -5,13 +5,35 @@ import { useAuth } from '../../contexts/AuthContext';
 import toast from 'react-hot-toast';
 import { UserPlus } from 'lucide-react';
 
+interface City {
+  id: string;
+  name: string;
+  province: string;
+}
+
 export default function Register() {
   const [name, setName] = useState('');
   const [cnic, setCnic] = useState('');
   const [password, setPassword] = useState('');
+  const [cityId, setCityId] = useState('');
+  const [photo, setPhoto] = useState<File | null>(null);
+  const [cities, setCities] = useState<City[]>([]);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { login } = useAuth();
+
+  React.useEffect(() => {
+    const fetchCities = async () => {
+      try {
+        const response = await api.get('/cities');
+        setCities(response.data);
+      } catch (error) {
+        toast.error('Failed to load cities');
+      }
+    };
+
+    fetchCities();
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -20,7 +42,18 @@ export default function Register() {
     try {
       const sanitizedName = name.trim();
       const sanitizedCnic = cnic.trim();
-      const response = await api.post('/auth/register', { name: sanitizedName, cnic: sanitizedCnic, password });
+      const formData = new FormData();
+      formData.append('name', sanitizedName);
+      formData.append('cnic', sanitizedCnic);
+      formData.append('password', password);
+      formData.append('cityId', cityId);
+      if (photo) {
+        formData.append('photo', photo);
+      }
+
+      const response = await api.post('/auth/register', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
       login(response.data);
       toast.success('Registration successful!');
       navigate('/voter/dashboard');
@@ -102,6 +135,40 @@ export default function Register() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="glass-input w-full block"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="city" className="block text-sm font-medium text-gray-300 mb-1.5">
+                City
+              </label>
+              <select
+                id="city"
+                name="city"
+                required
+                value={cityId}
+                onChange={(e) => setCityId(e.target.value)}
+                className="glass-input w-full block [&>option]:bg-[#111] [&>option]:text-white"
+              >
+                <option value="">Select your city...</option>
+                {cities.map((city) => (
+                  <option key={city.id} value={city.id}>{city.name} ({city.province})</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label htmlFor="photo" className="block text-sm font-medium text-gray-300 mb-1.5">
+                Picture
+              </label>
+              <input
+                id="photo"
+                name="photo"
+                type="file"
+                accept="image/*"
+                required
+                onChange={(e) => setPhoto(e.target.files?.[0] ?? null)}
+                className="glass-input w-full block file:mr-4 file:rounded-lg file:border-0 file:bg-primary-600 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-primary-500"
               />
             </div>
 

@@ -5,6 +5,7 @@ import { AuthProvider } from './contexts/AuthContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
 
 // Pages
+import Welcome from './pages/Welcome';
 import Login from './pages/auth/Login';
 import Register from './pages/auth/Register';
 
@@ -30,6 +31,7 @@ function App() {
       <AuthProvider>
         <Routes>
           {/* Public Auth Routes */}
+          <Route path="/" element={<Welcome />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
 
@@ -54,8 +56,7 @@ function App() {
           </Route>
 
           {/* Fallback Route */}
-          <Route path="/" element={<Navigate to="/login" replace />} />
-          <Route path="*" element={<Navigate to="/login" replace />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
         <Toaster position="top-right" />
       </AuthProvider>

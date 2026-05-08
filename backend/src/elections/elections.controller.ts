@@ -26,15 +26,15 @@ export class ElectionsController {
   }
 
   @UseGuards(JwtAuthGuard)
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.electionsService.findOne(id);
-  }
-
-  @UseGuards(JwtAuthGuard)
   @Get(':id/results')
   getResults(@Param('id') id: string) {
     return this.electionsService.getResults(id);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get(':id')
+  findOne(@Param('id') id: string) {
+    return this.electionsService.findOne(id);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)

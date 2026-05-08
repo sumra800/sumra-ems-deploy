@@ -3,9 +3,10 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConstituenciesService } from './constituencies.service';
 import { ConstituenciesController } from './constituencies.controller';
 import { Constituency } from './entities/constituency.entity';
+import { City } from '../cities/entities/city.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Constituency])],
+  imports: [TypeOrmModule.forFeature([Constituency, City])],
   controllers: [ConstituenciesController],
   providers: [ConstituenciesService],
   exports: [ConstituenciesService, TypeOrmModule],

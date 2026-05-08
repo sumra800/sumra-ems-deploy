@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, MinLength } from 'class-validator';
+import { IsString, IsNotEmpty, MinLength, IsUUID } from 'class-validator';
 
 export class RegisterDto {
   @IsString()
@@ -13,4 +13,8 @@ export class RegisterDto {
   @IsNotEmpty()
   @MinLength(6, { message: 'Password must be at least 6 characters long' })
   password: string;
+
+  @IsUUID()
+  @IsNotEmpty()
+  cityId: string;
 }

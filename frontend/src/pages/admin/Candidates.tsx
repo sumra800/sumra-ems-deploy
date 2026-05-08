@@ -8,6 +8,7 @@ interface Candidate {
   user: { id: string; name: string; cnic: string };
   constituency: { id: string; name: string };
   party?: { id: string; name: string };
+  photoUrl?: string;
 }
 
 export default function Candidates() {
@@ -20,6 +21,7 @@ export default function Candidates() {
   const [userId, setUserId] = useState('');
   const [constituencyId, setConstituencyId] = useState('');
   const [partyId, setPartyId] = useState('');
+  const [symbol, setSymbol] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const fetchData = async () => {
@@ -49,15 +51,23 @@ export default function Candidates() {
     e.preventDefault();
     setIsSubmitting(true);
     try {
-      await api.post('/candidates', {
-        userId,
-        constituencyId,
-        partyId: partyId || undefined,
+      const formData = new FormData();
+      formData.append('userId', userId);
+      formData.append('constituencyId', constituencyId);
+      if (partyId) {
+        formData.append('partyId', partyId);
+      } else if (symbol) {
+        formData.append('symbol', symbol);
+      }
+
+      await api.post('/candidates', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
       });
       toast.success('Candidate registered!');
       setUserId('');
       setConstituencyId('');
       setPartyId('');
+      setSymbol(null);
       fetchData();
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Failed to register candidate');
@@ -87,7 +97,7 @@ export default function Candidates() {
       {/* Create Form */}
       <div className="glass-card p-6 border-t-4 border-t-blue-500">
         <h3 className="text-lg font-bold text-white mb-4">Register Candidate</h3>
-        <form onSubmit={handleCreate} className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+        <form onSubmit={handleCreate} className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
           <div>
             <label className="block text-sm font-medium text-gray-400 mb-1.5">User</label>
             <select
@@ -123,6 +133,16 @@ export default function Candidates() {
               {parties.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
             </select>
           </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-400 mb-1.5">Independent Symbol</label>
+            <input
+              type="file"
+              accept="image/*"
+              disabled={Boolean(partyId)}
+              onChange={(e) => setSymbol(e.target.files?.[0] ?? null)}
+              className="glass-input w-full file:mr-3 file:rounded-lg file:border-0 file:bg-blue-600 file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-white hover:file:bg-blue-500 disabled:opacity-50"
+            />
+          </div>
           <button
             type="submit"
             disabled={isSubmitting}
@@ -151,7 +171,11 @@ export default function Candidates() {
               <li key={candidate.id} className="px-6 py-5 flex items-center justify-between hover:bg-white/5 transition-colors">
                 <div className="flex items-center">
                   <div className="h-10 w-10 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center mr-4">
-                    <UserSquare2 className="h-5 w-5 text-blue-400" />
+                    {candidate.photoUrl ? (
+                      <img src={candidate.photoUrl} alt={`${candidate.user?.name} symbol`} className="h-8 w-8 rounded-lg object-cover" />
+                    ) : (
+                      <UserSquare2 className="h-5 w-5 text-blue-400" />
+                    )}
                   </div>
                   <div>
                     <p className="text-base font-bold text-white">{candidate.user?.name}</p>

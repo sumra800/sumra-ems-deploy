@@ -18,6 +18,8 @@ import { Candidate } from './candidates/entities/candidate.entity';
 import { Election } from './elections/entities/election.entity';
 import { Vote } from './votes/entities/vote.entity';
 import { CloudinaryModule } from './cloudinary/cloudinary.module';
+import { CitiesModule } from './cities/cities.module';
+import { City } from './cities/entities/city.entity';
 
 @Module({
   imports: [
@@ -27,7 +29,7 @@ import { CloudinaryModule } from './cloudinary/cloudinary.module';
       useFactory: (configService: ConfigService) => ({
         type: 'postgres',
         url: configService.get('DATABASE_URL'),
-        entities: [User, Constituency, Party, Candidate, Election, Vote],
+        entities: [User, Constituency, Party, Candidate, Election, Vote, City],
         synchronize: true, // Auto-create tables in development
       }),
       inject: [ConfigService],
@@ -40,6 +42,7 @@ import { CloudinaryModule } from './cloudinary/cloudinary.module';
     ElectionsModule,
     VotesModule,
     CloudinaryModule,
+    CitiesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

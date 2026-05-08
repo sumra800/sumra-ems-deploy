@@ -15,6 +15,7 @@ export default function Parties() {
   const [loading, setLoading] = useState(true);
   const [name, setName] = useState('');
   const [leaderName, setLeaderName] = useState('');
+  const [symbol, setSymbol] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const fetchParties = async () => {
@@ -36,10 +37,20 @@ export default function Parties() {
     e.preventDefault();
     setIsSubmitting(true);
     try {
-      await api.post('/parties', { name, leaderName });
+      const formData = new FormData();
+      formData.append('name', name);
+      formData.append('leaderName', leaderName);
+      if (symbol) {
+        formData.append('symbol', symbol);
+      }
+
+      await api.post('/parties', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
       toast.success('Party added!');
       setName('');
       setLeaderName('');
+      setSymbol(null);
       fetchParties();
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Failed to create');
@@ -69,7 +80,7 @@ export default function Parties() {
       {/* Create Form */}
       <div className="glass-card p-6 border-t-4 border-t-orange-500">
         <h3 className="text-lg font-bold text-white mb-4">Add New Party</h3>
-        <form onSubmit={handleCreate} className="flex flex-col sm:flex-row gap-4 items-end">
+        <form onSubmit={handleCreate} className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
           <div className="flex-1 w-full">
             <label htmlFor="name" className="block text-sm font-medium text-gray-400 mb-1.5">Party Name</label>
             <input
@@ -89,6 +100,16 @@ export default function Parties() {
               value={leaderName}
               onChange={(e) => setLeaderName(e.target.value)}
               className="glass-input w-full"
+            />
+          </div>
+          <div className="flex-1 w-full">
+            <label htmlFor="symbol" className="block text-sm font-medium text-gray-400 mb-1.5">Party Symbol</label>
+            <input
+              type="file"
+              id="symbol"
+              accept="image/*"
+              onChange={(e) => setSymbol(e.target.files?.[0] ?? null)}
+              className="glass-input w-full file:mr-3 file:rounded-lg file:border-0 file:bg-orange-600 file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-white hover:file:bg-orange-500"
             />
           </div>
           <button
@@ -119,7 +140,11 @@ export default function Parties() {
               <li key={party.id} className="px-6 py-5 flex items-center justify-between hover:bg-white/5 transition-colors">
                 <div className="flex items-center">
                   <div className="h-10 w-10 rounded-xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center mr-4">
-                    <Users className="h-5 w-5 text-orange-400" />
+                    {party.logoUrl ? (
+                      <img src={party.logoUrl} alt={`${party.name} symbol`} className="h-8 w-8 rounded-lg object-cover" />
+                    ) : (
+                      <Users className="h-5 w-5 text-orange-400" />
+                    )}
                   </div>
                   <div>
                     <p className="text-base font-bold text-white">{party.name}</p>

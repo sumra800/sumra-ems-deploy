@@ -1,16 +1,19 @@
-import { Controller, Post, Body, Res, Req, UseGuards, UnauthorizedException, Get, HttpCode, HttpStatus } from '@nestjs/common';
+import { Controller, Post, Body, Res, Req, UseGuards, UnauthorizedException, Get, HttpCode, HttpStatus, UploadedFile, UseInterceptors } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { UsersService } from '../users/users.service';
 import type { Response } from 'express';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { CloudinaryService } from '../cloudinary/cloudinary.service';
 
 @Controller('auth')
 export class AuthController {
   constructor(
     private readonly authService: AuthService,
     private readonly usersService: UsersService,
+    private readonly cloudinaryService: CloudinaryService,
   ) {}
 
   private readonly authCookieOptions = {
@@ -21,8 +24,19 @@ export class AuthController {
   } as const;
 
   @Post('register')
-  async register(@Body() createUserDto: RegisterDto, @Res({ passthrough: true }) res: Response) {
-    const user = await this.usersService.create(createUserDto);
+  @UseInterceptors(FileInterceptor('photo'))
+  async register(
+    @Body() createUserDto: RegisterDto,
+    @UploadedFile() photo: any,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const uploadResult = photo
+      ? await this.cloudinaryService.uploadImage(photo.buffer, photo.mimetype)
+      : undefined;
+    const user = await this.usersService.create({
+      ...createUserDto,
+      photoUrl: uploadResult?.secure_url,
+    });
     const { access_token } = await this.authService.login(user);
     
     res.cookie('Authentication', access_token, this.authCookieOptions);

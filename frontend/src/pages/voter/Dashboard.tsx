@@ -13,8 +13,35 @@ interface Election {
   endTime: string | null;
 }
 
+interface ElectionResult {
+  election: {
+    id: string;
+    title: string;
+    status: Election['status'];
+  };
+  totalVotes: number;
+  results: Array<{
+    candidate: {
+      id: string;
+      photoUrl?: string;
+      user?: {
+        name: string;
+      };
+      party?: {
+        name: string;
+        logoUrl?: string;
+      };
+      constituency?: {
+        name: string;
+      };
+    };
+    count: number;
+  }>;
+}
+
 export default function VoterDashboard() {
   const [elections, setElections] = useState<Election[]>([]);
+  const [resultsByElection, setResultsByElection] = useState<Record<string, ElectionResult>>({});
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
 
@@ -22,7 +49,17 @@ export default function VoterDashboard() {
     const fetchElections = async () => {
       try {
         const response = await api.get('/elections');
-        setElections(response.data);
+        const electionsData: Election[] = response.data;
+        setElections(electionsData);
+
+        const completedElections = electionsData.filter(e => e.status === 'COMPLETED');
+        const completedResults = await Promise.all(
+          completedElections.map(async (election) => {
+            const resultResponse = await api.get(`/elections/${election.id}/results`);
+            return [election.id, resultResponse.data] as const;
+          })
+        );
+        setResultsByElection(Object.fromEntries(completedResults));
       } catch (error) {
         toast.error('Failed to load elections');
       } finally {
@@ -43,6 +80,21 @@ export default function VoterDashboard() {
 
   const activeElections = elections.filter(e => e.status === 'RUNNING');
   const pastElections = elections.filter(e => e.status === 'COMPLETED');
+
+  const getWinnerSummary = (electionId: string) => {
+    const result = resultsByElection[electionId];
+    if (!result || result.results.length === 0) {
+      return null;
+    }
+
+    const winner = result.results[0];
+    const runnerUp = result.results[1];
+    return {
+      result,
+      winner,
+      margin: winner.count - (runnerUp?.count ?? 0),
+    };
+  };
 
   return (
     <div className="space-y-8 font-sans">
@@ -116,19 +168,70 @@ export default function VoterDashboard() {
           </div>
           <ul className="divide-y divide-white/5">
             {pastElections.map((election) => (
-              <li key={election.id} className="px-6 py-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div className="flex flex-col">
-                  <p className="text-base font-semibold text-gray-300">{election.title}</p>
-                  <p className="mt-1 text-sm text-gray-500">
-                    Ended: {new Date(election.endTime!).toLocaleDateString()}
-                  </p>
+              <li key={election.id} className="px-6 py-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                <div className="flex flex-col gap-4">
+                  <div>
+                    <p className="text-base font-semibold text-gray-300">{election.title}</p>
+                    <p className="mt-1 text-sm text-gray-500">
+                      Ended: {new Date(election.endTime!).toLocaleDateString()}
+                    </p>
+                  </div>
+
+                  {(() => {
+                    const summary = getWinnerSummary(election.id);
+                    if (!summary) {
+                      return (
+                        <p className="text-sm text-gray-500">No votes were cast in this election.</p>
+                      );
+                    }
+
+                    const symbolUrl = summary.winner.candidate.party?.logoUrl ?? summary.winner.candidate.photoUrl;
+                    return (
+                      <div className="flex items-center gap-3">
+                        {symbolUrl ? (
+                          <img
+                            src={symbolUrl}
+                            alt={`${summary.winner.candidate.user?.name ?? 'Winner'} symbol`}
+                            className="h-12 w-12 rounded-lg object-cover border border-white/10"
+                          />
+                        ) : (
+                          <div className="h-12 w-12 rounded-lg bg-primary-900/30 border border-primary-500/20" />
+                        )}
+                        <div>
+                          <p className="text-sm text-gray-500">Winner</p>
+                          <p className="text-base font-bold text-white">
+                            {summary.winner.candidate.user?.name ?? 'Unknown candidate'}
+                          </p>
+                          <p className="text-xs text-primary-400">
+                            {summary.winner.candidate.party?.name ?? 'Independent'}
+                            {summary.winner.candidate.constituency?.name ? ` - ${summary.winner.candidate.constituency.name}` : ''}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
-                <button 
-                  disabled
-                  className="text-sm font-medium text-gray-500 bg-white/5 px-4 py-2 rounded-lg cursor-not-allowed border border-white/5"
-                >
-                  Results Pending
-                </button>
+
+                {(() => {
+                  const summary = getWinnerSummary(election.id);
+                  if (!summary) {
+                    return (
+                      <span className="text-sm font-medium text-gray-500 bg-white/5 px-4 py-2 rounded-lg border border-white/5 self-start lg:self-center">
+                        No result
+                      </span>
+                    );
+                  }
+
+                  return (
+                    <div className="self-start lg:self-center rounded-lg border border-primary-500/20 bg-primary-500/10 px-4 py-3">
+                      <p className="text-xs font-semibold uppercase tracking-wider text-primary-400">Victory margin</p>
+                      <p className="mt-1 text-lg font-extrabold text-white">
+                        {summary.margin} vote{summary.margin === 1 ? '' : 's'}
+                      </p>
+                      <p className="text-xs text-gray-500">{summary.result.totalVotes} total votes</p>
+                    </div>
+                  );
+                })()}
               </li>
             ))}
           </ul>

@@ -29,31 +29,20 @@ export class VotesService {
 
     const candidate = await this.candidatesRepository.findOne({
       where: { id: castVoteDto.candidateId },
-      relations: ['constituency'],
+      relations: ['constituency', 'constituency.city'],
     });
     if (!candidate) throw new NotFoundException('Candidate not found');
 
     const voter = await this.usersRepository.findOne({
       where: { id: user.id },
-      relations: ['constituency'],
+      relations: ['city', 'constituency'],
     });
 
-    if (!voter?.constituency || voter.constituency.id !== candidate.constituency.id) {
-      throw new BadRequestException('You can only vote for candidates in your own constituency');
-    }
+    const canVoteByCity = voter?.city && candidate.constituency.city?.id === voter.city.id;
+    const canVoteByLegacyConstituency = !voter?.city && voter?.constituency?.id === candidate.constituency.id;
 
-    // EDGE CASE: "A candidate can only vote for themselves"
-    const voterCandidateProfile = await this.candidatesRepository.findOne({
-      where: { user: { id: user.id } },
-      relations: ['constituency'],
-    });
-
-    if (
-      voterCandidateProfile && 
-      voterCandidateProfile.constituency.id === candidate.constituency.id && 
-      voterCandidateProfile.id !== candidate.id
-    ) {
-      throw new BadRequestException('As a candidate, you are only allowed to vote for yourself in your own constituency');
+    if (!canVoteByCity && !canVoteByLegacyConstituency) {
+      throw new BadRequestException('You can only vote for candidates in constituencies assigned to your city');
     }
 
     const existingVote = await this.votesRepository.findOne({

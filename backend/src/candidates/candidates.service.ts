@@ -2,7 +2,7 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Candidate } from './entities/candidate.entity';
-import { User } from '../users/entities/user.entity';
+import { User, UserRole } from '../users/entities/user.entity';
 import { Party } from '../parties/entities/party.entity';
 import { Constituency } from '../constituencies/entities/constituency.entity';
 import { CreateCandidateDto } from './dto/create-candidate.dto';
@@ -38,13 +38,14 @@ export class CandidatesService {
     const candidate = this.candidatesRepository.create({
       user,
       constituency,
-      photoUrl: createCandidateDto.photoUrl,
+      photoUrl: createCandidateDto.photoUrl ?? user.photoUrl,
     });
 
     if (createCandidateDto.partyId) {
       const party = await this.partiesRepository.findOne({ where: { id: createCandidateDto.partyId } });
       if (!party) throw new NotFoundException(`Party #${createCandidateDto.partyId} not found`);
       candidate.party = party;
+      candidate.photoUrl = party.logoUrl;
     }
 
     return this.candidatesRepository.save(candidate);
@@ -53,6 +54,33 @@ export class CandidatesService {
   async findAll(): Promise<Candidate[]> {
     return this.candidatesRepository.find({
       relations: ['user', 'party', 'constituency'],
+    });
+  }
+
+  async findAllForUser(user: User): Promise<Candidate[]> {
+    if (user.role === UserRole.ADMIN) {
+      return this.findAll();
+    }
+
+    const voter = await this.usersRepository.findOne({
+      where: { id: user.id },
+      relations: ['city', 'constituency'],
+    });
+
+    if (voter?.city) {
+      return this.candidatesRepository.find({
+        where: { constituency: { city: { id: voter.city.id } } },
+        relations: ['user', 'party', 'constituency', 'constituency.city'],
+      });
+    }
+
+    if (!voter?.constituency) {
+      return [];
+    }
+
+    return this.candidatesRepository.find({
+      where: { constituency: { id: voter.constituency.id } },
+      relations: ['user', 'party', 'constituency', 'constituency.city'],
     });
   }
 
@@ -80,6 +108,7 @@ export class CandidatesService {
       const party = await this.partiesRepository.findOne({ where: { id: updateCandidateDto.partyId } });
       if (!party) throw new NotFoundException(`Party #${updateCandidateDto.partyId} not found`);
       candidate.party = party;
+      candidate.photoUrl = party.logoUrl;
     }
 
     if (updateCandidateDto.photoUrl !== undefined) {

@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty } from 'class-validator';
+import { IsString, IsNotEmpty, IsUUID } from 'class-validator';
 
 export class CreateConstituencyDto {
   @IsString()
@@ -8,4 +8,8 @@ export class CreateConstituencyDto {
   @IsString()
   @IsNotEmpty()
   region: string;
+
+  @IsUUID()
+  @IsNotEmpty()
+  cityId: string;
 }
