@@ -10,6 +10,21 @@ import {
   CONSTITUENCY_CODE_REGEX,
 } from '../../lib/inputFormats';
 
+const constituencyFormH = 'h-12';
+
+const constituencyTextClass = `glass-input w-full ${constituencyFormH} px-4 !py-0 text-sm`;
+
+const constituencySelectClass = [
+  `glass-input w-full ${constituencyFormH} px-4 !py-0 text-sm`,
+  '[&>option]:bg-[#111] [&>option]:text-white',
+].join(' ');
+
+const constituencySubmitPrimaryClass =
+  `${constituencyFormH} w-full inline-flex items-center justify-center rounded-xl font-semibold px-6 text-sm text-white bg-primary-600 transition-all duration-300 hover:bg-primary-500 hover:shadow-[0_0_20px_rgba(34,197,94,0.35)] disabled:opacity-50 disabled:cursor-not-allowed`;
+
+const constituencySubmitBlueClass =
+  `${constituencyFormH} w-full inline-flex items-center justify-center rounded-xl font-semibold px-6 text-sm text-white bg-blue-600 transition-all duration-300 hover:bg-blue-500 hover:shadow-[0_0_20px_rgba(59,130,246,0.35)] disabled:opacity-50 disabled:cursor-not-allowed`;
+
 interface Constituency {
   id: string;
   name: string;
@@ -153,7 +168,7 @@ export default function Constituencies() {
       <div className="glass-card p-4 sm:p-6 border-t-4 border-t-blue-500">
         <h3 className="text-lg font-bold text-white mb-4">Add City</h3>
         <form noValidate onSubmit={handleCreateCity} className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
-          <div className="flex-1 w-full">
+          <div className="flex-1 w-full min-w-0">
             <label htmlFor="cityName" className="block text-sm font-medium text-gray-400 mb-1.5">City Name</label>
             <input
               type="text"
@@ -161,16 +176,16 @@ export default function Constituencies() {
               value={cityName}
               onChange={(e) => setCityName(e.target.value)}
               placeholder="e.g., Lahore"
-              className="glass-input w-full"
+              className={constituencyTextClass}
             />
           </div>
-          <div className="flex-1 w-full">
+          <div className="flex-1 w-full min-w-0">
             <label htmlFor="cityProvince" className="block text-sm font-medium text-gray-400 mb-1.5">Province</label>
             <select
               id="cityProvince"
               value={cityProvince}
               onChange={(e) => setCityProvince(e.target.value)}
-              className="glass-input w-full [&>option]:bg-[#111] [&>option]:text-white"
+              className={constituencySelectClass}
             >
               <option value="">Select Existing Province...</option>
               {existingProvinces.map((province) => (
@@ -183,7 +198,7 @@ export default function Constituencies() {
           <button
             type="submit"
             disabled={isCitySubmitting || existingProvinces.length === 0}
-            className="btn-primary w-full sm:w-auto flex items-center justify-center !bg-blue-600 hover:!bg-blue-500"
+            className={constituencySubmitBlueClass}
           >
             <Plus className="h-5 w-5 mr-1" />
             Add City
@@ -195,7 +210,7 @@ export default function Constituencies() {
       <div className="glass-card p-4 sm:p-6 border-t-4 border-t-primary-500">
         <h3 className="text-lg font-bold text-white mb-4">Add New Constituency</h3>
         <form noValidate onSubmit={handleCreate} className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
-          <div className="flex-1 w-full">
+          <div className="flex-1 w-full min-w-0">
             <label htmlFor="name" className="block text-sm font-medium text-gray-400 mb-1.5">Constituency Name</label>
             <input
               type="text"
@@ -203,16 +218,16 @@ export default function Constituencies() {
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g., NA-1"
-              className="glass-input w-full"
+              className={constituencyTextClass}
             />
           </div>
-          <div className="flex-1 w-full">
+          <div className="flex-1 w-full min-w-0">
             <label htmlFor="cityId" className="block text-sm font-medium text-gray-400 mb-1.5">City</label>
             <select
               id="cityId"
               value={cityId}
               onChange={(e) => setCityId(e.target.value)}
-              className="glass-input w-full [&>option]:bg-[#111] [&>option]:text-white"
+              className={constituencySelectClass}
             >
               <option value="">Select City...</option>
               {cities.map((city) => (
@@ -223,7 +238,7 @@ export default function Constituencies() {
           <button
             type="submit"
             disabled={isSubmitting}
-            className="btn-primary w-full sm:w-auto flex items-center justify-center"
+            className={constituencySubmitPrimaryClass}
           >
             <Plus className="h-5 w-5 mr-1" />
             Add District
