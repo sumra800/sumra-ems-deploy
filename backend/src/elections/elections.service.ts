@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Election, ElectionStatus } from './entities/election.entity';
+import { Vote } from '../votes/entities/vote.entity';
 import { CreateElectionDto } from './dto/create-election.dto';
 import { UpdateElectionDto } from './dto/update-election.dto';
 
@@ -10,6 +11,8 @@ export class ElectionsService {
   constructor(
     @InjectRepository(Election)
     private electionsRepository: Repository<Election>,
+    @InjectRepository(Vote)
+    private votesRepository: Repository<Vote>,
   ) {}
 
   async create(createElectionDto: CreateElectionDto): Promise<Election> {
@@ -70,14 +73,22 @@ export class ElectionsService {
   }
 
   async getResults(id: string): Promise<any> {
-    const election = await this.electionsRepository.findOne({
-      where: { id },
-      relations: ['votes', 'votes.candidate', 'votes.candidate.user', 'votes.candidate.party', 'votes.candidate.constituency'],
-    });
+    const election = await this.electionsRepository.findOne({ where: { id } });
     if (!election) throw new NotFoundException(`Election #${id} not found`);
 
+    const votes = await this.votesRepository.find({
+      where: { election: { id } },
+      relations: [
+        'candidate',
+        'candidate.user',
+        'candidate.party',
+        'candidate.constituency',
+        'candidate.constituency.city',
+      ],
+    });
+
     const tally = new Map<string, { candidate: any; count: number }>();
-    for (const vote of election.votes) {
+    for (const vote of votes) {
       const cId = vote.candidate.id;
       if (!tally.has(cId)) {
         tally.set(cId, { candidate: vote.candidate, count: 0 });
@@ -88,7 +99,7 @@ export class ElectionsService {
     const results = Array.from(tally.values()).sort((a, b) => b.count - a.count);
     return {
       election: { id: election.id, title: election.title, status: election.status },
-      totalVotes: election.votes.length,
+      totalVotes: votes.length,
       results,
     };
   }

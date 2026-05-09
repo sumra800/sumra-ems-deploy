@@ -1,7 +1,7 @@
-
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from './contexts/AuthContext';
+import { AppToaster } from './components/AppToaster';
+import { ConfirmProvider } from './contexts/ConfirmContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
 
 // Pages
@@ -28,38 +28,40 @@ import Elections from './pages/admin/Elections';
 function App() {
   return (
     <BrowserRouter>
-      <AuthProvider>
-        <Routes>
-          {/* Public Auth Routes */}
-          <Route path="/" element={<Welcome />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
+      <ConfirmProvider>
+        <AuthProvider>
+          <Routes>
+            {/* Public Auth Routes */}
+            <Route path="/" element={<Welcome />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
 
-          {/* Admin Routes */}
-          <Route element={<ProtectedRoute allowedRoles={['ADMIN']} />}>
-            <Route element={<AdminLayout />}>
-              <Route path="/admin/dashboard" element={<AdminDashboard />} />
-              <Route path="/admin/constituencies" element={<Constituencies />} />
-              <Route path="/admin/parties" element={<Parties />} />
-              <Route path="/admin/candidates" element={<Candidates />} />
-              <Route path="/admin/elections" element={<Elections />} />
+            {/* Admin Routes */}
+            <Route element={<ProtectedRoute allowedRoles={['ADMIN']} />}>
+              <Route element={<AdminLayout />}>
+                <Route path="/admin/dashboard" element={<AdminDashboard />} />
+                <Route path="/admin/constituencies" element={<Constituencies />} />
+                <Route path="/admin/parties" element={<Parties />} />
+                <Route path="/admin/candidates" element={<Candidates />} />
+                <Route path="/admin/elections" element={<Elections />} />
+              </Route>
             </Route>
-          </Route>
 
-          {/* Voter Routes */}
-          <Route element={<ProtectedRoute allowedRoles={['VOTER']} />}>
-            <Route element={<VoterLayout />}>
-              <Route path="/voter/dashboard" element={<VoterDashboard />} />
-              <Route path="/voter/my-votes" element={<MyVotes />} />
-              <Route path="/voter/vote/:electionId" element={<CastVote />} />
+            {/* Voter Routes */}
+            <Route element={<ProtectedRoute allowedRoles={['VOTER']} />}>
+              <Route element={<VoterLayout />}>
+                <Route path="/voter/dashboard" element={<VoterDashboard />} />
+                <Route path="/voter/my-votes" element={<MyVotes />} />
+                <Route path="/voter/vote/:electionId" element={<CastVote />} />
+              </Route>
             </Route>
-          </Route>
 
-          {/* Fallback Route */}
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-        <Toaster position="top-right" />
-      </AuthProvider>
+            {/* Fallback Route */}
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+          <AppToaster />
+        </AuthProvider>
+      </ConfirmProvider>
     </BrowserRouter>
   );
 }

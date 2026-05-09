@@ -7,6 +7,7 @@ import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { CloudinaryService } from '../cloudinary/cloudinary.service';
+import { assertAllowedImageMime } from '../cloudinary/allowed-image-upload';
 
 @Controller('auth')
 export class AuthController {
@@ -30,6 +31,9 @@ export class AuthController {
     @UploadedFile() photo: any,
     @Res({ passthrough: true }) res: Response,
   ) {
+    if (photo) {
+      assertAllowedImageMime(photo.mimetype, 'Profile picture');
+    }
     const uploadResult = photo
       ? await this.cloudinaryService.uploadImage(photo.buffer, photo.mimetype)
       : undefined;
@@ -73,6 +77,7 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @Get('profile')
   getProfile(@Req() req: any) {
-    return req.user;
+    const { password: _omit, ...user } = req.user ?? {};
+    return user;
   }
 }

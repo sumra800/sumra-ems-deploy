@@ -21,6 +21,26 @@ export class CandidatesService {
     private constituenciesRepository: Repository<Constituency>,
   ) {}
 
+  private async assertPartySeatAvailable(
+    constituencyId: string,
+    partyId: string,
+    excludeCandidateId?: string,
+  ): Promise<void> {
+    const existing = await this.candidatesRepository.findOne({
+      where: {
+        constituency: { id: constituencyId },
+        party: { id: partyId },
+      },
+      relations: ['party', 'constituency'],
+    });
+
+    if (existing && existing.id !== excludeCandidateId) {
+      throw new BadRequestException(
+        'This party already has a candidate in the selected constituency',
+      );
+    }
+  }
+
   async create(createCandidateDto: CreateCandidateDto): Promise<Candidate> {
     const user = await this.usersRepository.findOne({ where: { id: createCandidateDto.userId } });
     if (!user) throw new NotFoundException(`User #${createCandidateDto.userId} not found`);
@@ -44,6 +64,7 @@ export class CandidatesService {
     if (createCandidateDto.partyId) {
       const party = await this.partiesRepository.findOne({ where: { id: createCandidateDto.partyId } });
       if (!party) throw new NotFoundException(`Party #${createCandidateDto.partyId} not found`);
+      await this.assertPartySeatAvailable(constituency.id, party.id);
       candidate.party = party;
       candidate.photoUrl = party.logoUrl;
     }
@@ -113,8 +134,20 @@ export class CandidatesService {
     if (updateCandidateDto.partyId) {
       const party = await this.partiesRepository.findOne({ where: { id: updateCandidateDto.partyId } });
       if (!party) throw new NotFoundException(`Party #${updateCandidateDto.partyId} not found`);
+      await this.assertPartySeatAvailable(
+        candidate.constituency.id,
+        party.id,
+        candidate.id,
+      );
       candidate.party = party;
       candidate.photoUrl = party.logoUrl;
+    } else if (candidate.party) {
+      // If constituency changed but party stayed same, re-validate the one-party-per-constituency rule.
+      await this.assertPartySeatAvailable(
+        candidate.constituency.id,
+        candidate.party.id,
+        candidate.id,
+      );
     }
 
     if (updateCandidateDto.photoUrl !== undefined) {

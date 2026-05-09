@@ -54,11 +54,17 @@ export class UsersService {
   }
 
   async findOneByCnic(cnic: string): Promise<User | null> {
-    return this.usersRepository.findOne({ where: { cnic } });
+    return this.usersRepository.findOne({
+      where: { cnic },
+      relations: ['city', 'constituency', 'constituency.city'],
+    });
   }
 
   async findOneById(id: string): Promise<User | null> {
-    return this.usersRepository.findOne({ where: { id }, relations: ['city', 'constituency'] });
+    return this.usersRepository.findOne({
+      where: { id },
+      relations: ['city', 'constituency', 'constituency.city'],
+    });
   }
 
   async findAll(): Promise<Pick<User, 'id' | 'name' | 'cnic' | 'role' | 'createdAt'>[]> {

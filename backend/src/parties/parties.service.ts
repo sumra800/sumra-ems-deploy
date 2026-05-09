@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { ILike, Repository } from 'typeorm';
 import { Party } from './entities/party.entity';
 import { CreatePartyDto } from './dto/create-party.dto';
 import { UpdatePartyDto } from './dto/update-party.dto';
@@ -13,11 +13,17 @@ export class PartiesService {
   ) {}
 
   async create(createPartyDto: CreatePartyDto): Promise<Party> {
-    const existing = await this.partiesRepository.findOne({ where: { name: createPartyDto.name } });
+    const normalizedName = createPartyDto.name.trim();
+    const normalizedLeaderName = createPartyDto.leaderName?.trim();
+    const existing = await this.partiesRepository.findOne({ where: { name: ILike(normalizedName) } });
     if (existing) {
-      throw new ConflictException(`Party with name "${createPartyDto.name}" already exists`);
+      throw new ConflictException(`Party with name "${normalizedName}" already exists`);
     }
-    const party = this.partiesRepository.create(createPartyDto);
+    const party = this.partiesRepository.create({
+      ...createPartyDto,
+      name: normalizedName,
+      leaderName: normalizedLeaderName || undefined,
+    });
     return this.partiesRepository.save(party);
   }
 
@@ -37,7 +43,15 @@ export class PartiesService {
   }
 
   async update(id: string, updatePartyDto: UpdatePartyDto): Promise<Party> {
-    await this.partiesRepository.update(id, updatePartyDto);
+    const payload: UpdatePartyDto = { ...updatePartyDto };
+    if (payload.name !== undefined) {
+      payload.name = payload.name.trim();
+    }
+    if (payload.leaderName !== undefined) {
+      const normalizedLeaderName = payload.leaderName.trim();
+      payload.leaderName = normalizedLeaderName || undefined;
+    }
+    await this.partiesRepository.update(id, payload);
     return this.findOne(id);
   }
 

@@ -1,12 +1,14 @@
 import { createContext, useContext, useState, useEffect, type ReactNode, type FC } from 'react';
 import { api } from '../api/axios';
 
-// Align with User entity from backend
+// Align with User entity from backend (relations may be present after login/profile)
 export interface User {
   id: string;
   name: string;
   cnic: string;
   role: 'ADMIN' | 'VOTER';
+  city?: { id: string; name?: string } | null;
+  constituency?: { id: string; name?: string; city?: { id: string } } | null;
 }
 
 interface AuthContextType {

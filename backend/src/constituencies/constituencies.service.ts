@@ -20,8 +20,9 @@ export class ConstituenciesService {
     if (!city) throw new NotFoundException(`City #${createConstituencyDto.cityId} not found`);
 
     const constituency = this.constituenciesRepository.create({
-      name: createConstituencyDto.name,
-      region: createConstituencyDto.region,
+      name: createConstituencyDto.name.trim(),
+      // Keep region aligned with the selected city's province.
+      region: city.province,
       city,
     });
     return this.constituenciesRepository.save(constituency);
@@ -46,7 +47,7 @@ export class ConstituenciesService {
     const constituency = await this.findOne(id);
 
     if (updateConstituencyDto.name !== undefined) {
-      constituency.name = updateConstituencyDto.name;
+      constituency.name = updateConstituencyDto.name.trim();
     }
     if (updateConstituencyDto.region !== undefined) {
       constituency.region = updateConstituencyDto.region;

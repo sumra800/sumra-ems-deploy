@@ -60,7 +60,7 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] flex flex-col justify-center py-12 sm:px-6 lg:px-8 relative overflow-hidden">
+    <div className="min-h-screen min-h-[100dvh] bg-[#0a0a0a] flex flex-col justify-center py-10 sm:py-12 px-4 sm:px-6 lg:px-8 relative overflow-x-hidden">
       {/* Dynamic Background Elements */}
       <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-primary-600/20 rounded-full blur-[120px] pointer-events-none" />
       <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-white/5 rounded-full blur-[100px] pointer-events-none" />
@@ -75,7 +75,7 @@ export default function Login() {
           Welcome Back
         </h2>
         <p className="mt-2 text-center text-sm text-gray-400">
-          Sign in to access the Election Management System. Or{' '}
+          Sign in to access Govt EMS. Or{' '}
           <Link to="/register" className="font-medium text-primary-500 hover:text-primary-400 transition-colors">
             register for a voter account
           </Link>
@@ -84,7 +84,7 @@ export default function Login() {
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md relative z-10">
         <div className="glass-card py-8 px-4 sm:px-10">
-          <form className="space-y-6" onSubmit={handleSubmit}>
+          <form className="space-y-6" noValidate onSubmit={handleSubmit}>
             <div>
               <label htmlFor="cnic" className="block text-sm font-medium text-gray-300 mb-1.5">
                 CNIC Number
@@ -93,7 +93,6 @@ export default function Login() {
                 id="cnic"
                 name="cnic"
                 type="text"
-                required
                 placeholder="12345-1234567-1"
                 value={cnic}
                 onChange={(e) => setCnic(e.target.value)}
@@ -110,7 +109,6 @@ export default function Login() {
                 id="password"
                 name="password"
                 type="password"
-                required
                 placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}

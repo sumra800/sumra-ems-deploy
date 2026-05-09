@@ -1,4 +1,5 @@
 import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, UploadedFile, UseInterceptors } from '@nestjs/common';
+import { assertAllowedImageMime } from '../cloudinary/allowed-image-upload';
 import { PartiesService } from './parties.service';
 import { CreatePartyDto } from './dto/create-party.dto';
 import { UpdatePartyDto } from './dto/update-party.dto';
@@ -21,6 +22,9 @@ export class PartiesController {
   @Post()
   @UseInterceptors(FileInterceptor('symbol'))
   async create(@Body() createPartyDto: CreatePartyDto, @UploadedFile() symbol: any) {
+    if (symbol) {
+      assertAllowedImageMime(symbol.mimetype, 'Party symbol');
+    }
     const uploadResult = symbol
       ? await this.cloudinaryService.uploadImage(symbol.buffer, symbol.mimetype)
       : undefined;
@@ -47,6 +51,9 @@ export class PartiesController {
   @Patch(':id')
   @UseInterceptors(FileInterceptor('symbol'))
   async update(@Param('id') id: string, @Body() updatePartyDto: UpdatePartyDto, @UploadedFile() symbol: any) {
+    if (symbol) {
+      assertAllowedImageMime(symbol.mimetype, 'Party symbol');
+    }
     const uploadResult = symbol
       ? await this.cloudinaryService.uploadImage(symbol.buffer, symbol.mimetype)
       : undefined;

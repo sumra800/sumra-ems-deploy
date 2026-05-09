@@ -1,4 +1,5 @@
 import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Req, UploadedFile, UseInterceptors } from '@nestjs/common';
+import { assertAllowedImageMime } from '../cloudinary/allowed-image-upload';
 import { CandidatesService } from './candidates.service';
 import { CreateCandidateDto } from './dto/create-candidate.dto';
 import { UpdateCandidateDto } from './dto/update-candidate.dto';
@@ -21,6 +22,9 @@ export class CandidatesController {
   @Post()
   @UseInterceptors(FileInterceptor('symbol'))
   async create(@Body() createCandidateDto: CreateCandidateDto, @UploadedFile() symbol: any) {
+    if (symbol) {
+      assertAllowedImageMime(symbol.mimetype, 'Candidate symbol');
+    }
     const uploadResult = symbol
       ? await this.cloudinaryService.uploadImage(symbol.buffer, symbol.mimetype)
       : undefined;
@@ -47,6 +51,9 @@ export class CandidatesController {
   @Patch(':id')
   @UseInterceptors(FileInterceptor('symbol'))
   async update(@Param('id') id: string, @Body() updateCandidateDto: UpdateCandidateDto, @UploadedFile() symbol: any) {
+    if (symbol) {
+      assertAllowedImageMime(symbol.mimetype, 'Candidate symbol');
+    }
     const uploadResult = symbol
       ? await this.cloudinaryService.uploadImage(symbol.buffer, symbol.mimetype)
       : undefined;

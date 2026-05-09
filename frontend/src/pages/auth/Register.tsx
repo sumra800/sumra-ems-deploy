@@ -4,6 +4,7 @@ import { api } from '../../api/axios';
 import { useAuth } from '../../contexts/AuthContext';
 import toast from 'react-hot-toast';
 import { UserPlus } from 'lucide-react';
+import { isAllowedRasterOrSvgFile, PROFILE_PHOTO_ACCEPT } from '../../lib/imageUpload';
 
 interface City {
   id: string;
@@ -80,6 +81,8 @@ export default function Register() {
     // Photo validation
     if (!photo) {
       newErrors.photo = 'Profile picture is required';
+    } else if (!isAllowedRasterOrSvgFile(photo)) {
+      newErrors.photo = 'Picture must be SVG, PNG, JPG, or JPEG';
     }
 
     setErrors(newErrors);
@@ -117,7 +120,7 @@ export default function Register() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] flex flex-col justify-center py-12 sm:px-6 lg:px-8 relative overflow-hidden">
+    <div className="min-h-screen min-h-[100dvh] bg-[#0a0a0a] flex flex-col justify-center py-10 sm:py-12 px-4 sm:px-6 lg:px-8 relative overflow-x-hidden">
       {/* Dynamic Background Elements */}
       <div className="absolute top-[-10%] right-[-10%] w-[40%] h-[40%] bg-primary-600/20 rounded-full blur-[120px] pointer-events-none" />
       <div className="absolute bottom-[-10%] left-[-10%] w-[40%] h-[40%] bg-white/5 rounded-full blur-[100px] pointer-events-none" />
@@ -141,7 +144,7 @@ export default function Register() {
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md relative z-10">
         <div className="glass-card py-8 px-4 sm:px-10">
-          <form className="space-y-6" onSubmit={handleSubmit}>
+          <form className="space-y-6" noValidate onSubmit={handleSubmit}>
             <div>
               <label htmlFor="name" className="block text-sm font-medium text-gray-300 mb-1.5">
                 Full Name
@@ -150,7 +153,6 @@ export default function Register() {
                 id="name"
                 name="name"
                 type="text"
-                required
                 placeholder="John Doe"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
@@ -167,7 +169,6 @@ export default function Register() {
                 id="cnic"
                 name="cnic"
                 type="text"
-                required
                 placeholder="12345-1234567-1"
                 value={cnic}
                 onChange={(e) => setCnic(e.target.value)}
@@ -184,7 +185,6 @@ export default function Register() {
                 id="password"
                 name="password"
                 type="password"
-                required
                 placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -201,7 +201,6 @@ export default function Register() {
                 id="confirmPassword"
                 name="confirmPassword"
                 type="password"
-                required
                 placeholder="••••••••"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
@@ -217,7 +216,6 @@ export default function Register() {
               <select
                 id="city"
                 name="city"
-                required
                 value={cityId}
                 onChange={(e) => setCityId(e.target.value)}
                 className="glass-input w-full block [&>option]:bg-[#111] [&>option]:text-white"
@@ -238,10 +236,20 @@ export default function Register() {
                 id="photo"
                 name="photo"
                 type="file"
-                accept="image/*"
-                required
-                onChange={(e) => setPhoto(e.target.files?.[0] ?? null)}
-                className="glass-input w-full block file:mr-4 file:rounded-lg file:border-0 file:bg-primary-600 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-primary-500"
+                accept={PROFILE_PHOTO_ACCEPT}
+                onChange={(e) => {
+                  const f = e.target.files?.[0] ?? null;
+                  setPhoto(f);
+                  if (f && !isAllowedRasterOrSvgFile(f)) {
+                    setErrors((prev) => ({ ...prev, photo: 'Picture must be SVG, PNG, JPG, or JPEG' }));
+                  } else {
+                    setErrors((prev) => {
+                      const { photo: _p, ...rest } = prev;
+                      return rest;
+                    });
+                  }
+                }}
+                className="glass-input w-full block text-sm leading-snug !py-2 file:mr-3 file:inline-flex file:h-7 file:max-h-7 file:items-center file:rounded-lg file:border-0 file:bg-primary-600 file:px-2.5 file:text-xs file:font-semibold file:text-white file:leading-none hover:file:bg-primary-500"
               />
               {errors.photo && <p className="mt-1 text-sm text-red-400">{errors.photo}</p>}
             </div>

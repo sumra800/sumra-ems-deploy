@@ -32,7 +32,9 @@ interface ElectionResult {
         logoUrl?: string;
       };
       constituency?: {
+        id?: string;
         name: string;
+        city?: { id: string; name?: string };
       };
     };
     count: number;
@@ -44,6 +46,23 @@ export default function VoterDashboard() {
   const [resultsByElection, setResultsByElection] = useState<Record<string, ElectionResult>>({});
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
+
+  function resultsInVoterArea(
+    rows: ElectionResult['results'],
+  ): ElectionResult['results'] {
+    if (!user) return rows;
+    const voterCityId = user.city?.id;
+    if (voterCityId) {
+      return rows.filter(
+        (row) => row.candidate.constituency?.city?.id === voterCityId,
+      );
+    }
+    const legacyConstituencyId = user.constituency?.id;
+    if (legacyConstituencyId) {
+      return rows.filter((row) => row.candidate.constituency?.id === legacyConstituencyId);
+    }
+    return rows;
+  }
 
   useEffect(() => {
     const fetchElections = async () => {
@@ -87,25 +106,34 @@ export default function VoterDashboard() {
       return null;
     }
 
-    const winner = result.results[0];
-    const runnerUp = result.results[1];
+    const localRows = resultsInVoterArea(result.results);
+    if (localRows.length === 0) {
+      return null;
+    }
+
+    const sorted = [...localRows].sort((a, b) => b.count - a.count);
+    const winner = sorted[0];
+    const runnerUp = sorted[1];
+    const areaVoteTotal = sorted.reduce((acc, row) => acc + row.count, 0);
     return {
       result,
       winner,
       margin: winner.count - (runnerUp?.count ?? 0),
+      areaVoteTotal,
+      electionWideTotalVotes: result.totalVotes,
     };
   };
 
   return (
     <div className="space-y-8 font-sans">
-      <div className="glass-card p-8 relative overflow-hidden">
+      <div className="glass-card p-5 sm:p-8 relative overflow-hidden">
         {/* Abstract Glow */}
         <div className="absolute top-0 right-0 w-64 h-64 bg-primary-500/20 rounded-full blur-[80px] pointer-events-none" />
         
         <div className="relative z-10">
-          <h1 className="text-3xl font-extrabold text-white tracking-tight flex items-center">
-            Welcome, {user?.name}
-            <Sparkles className="ml-3 h-6 w-6 text-primary-400" />
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+            <span className="break-words">Welcome, {user?.name}</span>
+            <Sparkles className="h-6 w-6 text-primary-400 shrink-0" aria-hidden />
           </h1>
           <p className="mt-2 text-base text-gray-400 max-w-2xl">
             This is your secure portal to participate in active elections. Your vote is immutable, confidential, and vital to the democratic process.
@@ -179,9 +207,14 @@ export default function VoterDashboard() {
 
                   {(() => {
                     const summary = getWinnerSummary(election.id);
+                    const ballot = resultsByElection[election.id];
                     if (!summary) {
                       return (
-                        <p className="text-sm text-gray-500">No votes were cast in this election.</p>
+                        <p className="text-sm text-gray-500">
+                          {!ballot?.results?.length
+                            ? 'No votes were cast in this election.'
+                            : 'No votes were cast for candidates in your constituency/city area in this election.'}
+                        </p>
                       );
                     }
 
@@ -198,7 +231,7 @@ export default function VoterDashboard() {
                           <div className="h-12 w-12 rounded-lg bg-primary-900/30 border border-primary-500/20" />
                         )}
                         <div>
-                          <p className="text-sm text-gray-500">Winner</p>
+                          <p className="text-sm text-gray-500">Winner in your area</p>
                           <p className="text-base font-bold text-white">
                             {summary.winner.candidate.user?.name ?? 'Unknown candidate'}
                           </p>
@@ -222,13 +255,25 @@ export default function VoterDashboard() {
                     );
                   }
 
+                  const wide = summary.electionWideTotalVotes;
+                  const local = summary.areaVoteTotal;
+                  const showNational =
+                    typeof wide === 'number' && wide > 0 && wide !== local;
+
                   return (
                     <div className="self-start lg:self-center rounded-lg border border-primary-500/20 bg-primary-500/10 px-4 py-3">
                       <p className="text-xs font-semibold uppercase tracking-wider text-primary-400">Victory margin</p>
                       <p className="mt-1 text-lg font-extrabold text-white">
                         {summary.margin} vote{summary.margin === 1 ? '' : 's'}
                       </p>
-                      <p className="text-xs text-gray-500">{summary.result.totalVotes} total votes</p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        {local} vote{local === 1 ? '' : 's'} counted in your city or constituency
+                      </p>
+                      {showNational && (
+                        <p className="text-xs text-gray-500 mt-0.5">
+                          {wide} vote{wide === 1 ? '' : 's'} nationwide (all areas)
+                        </p>
+                      )}
                     </div>
                   );
                 })()}

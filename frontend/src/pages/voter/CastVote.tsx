@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../../api/axios';
 import { CheckCircle, ShieldAlert, AlertTriangle } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { useConfirm } from '../../contexts/ConfirmContext';
 
 interface Candidate {
   id: string;
@@ -17,6 +18,7 @@ interface Candidate {
 }
 
 export default function CastVote() {
+  const confirm = useConfirm();
   const { electionId } = useParams<{ electionId: string }>();
   const navigate = useNavigate();
   const [candidates, setCandidates] = useState<Candidate[]>([]);
@@ -29,7 +31,6 @@ export default function CastVote() {
   useEffect(() => {
     const checkStatusAndFetchCandidates = async () => {
       try {
-        // 1. Check if already voted
         const voteStatus = await api.get(`/votes/has-voted/${electionId}`);
         if (voteStatus.data) {
           setHasVoted(true);
@@ -37,12 +38,9 @@ export default function CastVote() {
           return;
         }
 
-        // 2. Fetch election details
         const electionRes = await api.get(`/elections/${electionId}`);
         setElectionTitle(electionRes.data.title);
 
-        // 3. Fetch candidates (In a real app, backend should filter candidates by voter's constituency.
-        // For now, we fetch all and let backend reject if constituency doesn't match)
         const candidatesRes = await api.get('/candidates');
         setCandidates(candidatesRes.data);
       } catch (error: any) {
@@ -60,17 +58,20 @@ export default function CastVote() {
 
   const handleCastVote = async () => {
     if (!selectedCandidate) return;
-    
-    // Confirmation dialog
-    if (!window.confirm("Are you sure? You cannot change your vote once submitted.")) {
-      return;
-    }
+
+    const ok = await confirm({
+      title: 'Submit vote',
+      message: 'You cannot change your vote once submitted. Continue?',
+      confirmLabel: 'Submit vote',
+      variant: 'default',
+    });
+    if (!ok) return;
 
     setSubmitting(true);
     try {
       await api.post('/votes', {
         electionId,
-        candidateId: selectedCandidate
+        candidateId: selectedCandidate,
       });
       toast.success('Vote cast successfully!');
       navigate('/voter/my-votes');
@@ -83,22 +84,25 @@ export default function CastVote() {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      <div className="flex justify-center items-center min-h-[40vh] px-4">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500" />
       </div>
     );
   }
 
   if (hasVoted) {
     return (
-      <div className="max-w-3xl mx-auto mt-10">
-        <div className="bg-white shadow sm:rounded-lg border border-gray-200 px-4 py-12 text-center text-gray-500">
-          <CheckCircle className="mx-auto h-16 w-16 text-green-500 mb-4" />
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Vote Already Recorded</h2>
-          <p className="mb-6">You have already securely cast your vote in this election.</p>
-          <button 
+      <div className="max-w-lg mx-auto mt-6 sm:mt-10 px-3 sm:px-0">
+        <div className="glass-card border border-white/10 px-4 py-10 sm:px-8 text-center">
+          <CheckCircle className="mx-auto h-14 w-14 sm:h-16 sm:w-16 text-primary-400 mb-4" />
+          <h2 className="text-xl sm:text-2xl font-bold text-white mb-2">Vote Already Recorded</h2>
+          <p className="mb-6 text-sm sm:text-base text-gray-400">
+            You have already securely cast your vote in this election.
+          </p>
+          <button
+            type="button"
             onClick={() => navigate('/voter/my-votes')}
-            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            className="inline-flex min-h-[44px] w-full sm:w-auto items-center justify-center px-6 py-2.5 rounded-xl text-sm font-semibold text-white bg-primary-600 hover:bg-primary-500 transition-colors"
           >
             View Voting History
           </button>
@@ -108,49 +112,67 @@ export default function CastVote() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto font-sans">
-      <div className="mb-8">
-        <h1 className="text-3xl font-extrabold text-gray-900">{electionTitle}</h1>
-        <p className="mt-2 text-sm text-gray-600 flex items-center">
-          <ShieldAlert className="h-4 w-4 mr-1.5 text-blue-500" />
-          Select your preferred candidate carefully. This action cannot be undone.
+    <div className="w-full max-w-4xl mx-auto font-sans px-0 sm:px-0 min-w-0">
+      <div className="mb-6 sm:mb-8">
+        <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight break-words">
+          {electionTitle}
+        </h1>
+        <p className="mt-2 text-sm text-gray-400 flex flex-wrap items-center gap-1.5">
+          <ShieldAlert className="h-4 w-4 shrink-0 text-primary-500" aria-hidden />
+          <span>Select your preferred candidate carefully. This action cannot be undone.</span>
         </p>
       </div>
 
-      <div className="grid gap-6 sm:grid-cols-2">
+      <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2">
         {candidates.map((candidate) => (
-          <div 
+          <div
             key={candidate.id}
+            role="button"
+            tabIndex={0}
             onClick={() => setSelectedCandidate(candidate.id)}
-            className={`relative rounded-xl border-2 p-6 cursor-pointer transition-all duration-200 ${
-              selectedCandidate === candidate.id 
-                ? 'border-blue-600 bg-blue-50 ring-1 ring-blue-600 shadow-md' 
-                : 'border-gray-200 bg-white hover:border-blue-300 hover:shadow'
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                setSelectedCandidate(candidate.id);
+              }
+            }}
+            className={`relative rounded-xl border-2 p-4 sm:p-6 cursor-pointer transition-all duration-200 min-h-[44px] ${
+              selectedCandidate === candidate.id
+                ? 'border-primary-500 bg-white/10 ring-2 ring-primary-500/50 shadow-lg'
+                : 'border-white/10 bg-white/[0.04] hover:border-primary-500/50 hover:bg-white/[0.06]'
             }`}
           >
             {selectedCandidate === candidate.id && (
-              <div className="absolute top-4 right-4 h-6 w-6 text-blue-600">
+              <div className="absolute top-3 right-3 sm:top-4 sm:right-4 h-6 w-6 text-primary-400" aria-hidden>
                 <CheckCircle className="h-full w-full" />
               </div>
             )}
-            
-            <div className="flex items-center space-x-4">
+
+            <div className="flex items-start sm:items-center gap-3 sm:gap-4 pr-7 sm:pr-8">
               {candidate.photoUrl ? (
-                <img src={candidate.photoUrl} alt={candidate.user.name} className="h-16 w-16 rounded-full object-cover border border-gray-200 shadow-sm" />
+                <img
+                  src={candidate.photoUrl}
+                  alt=""
+                  className="h-14 w-14 sm:h-16 sm:w-16 shrink-0 rounded-full object-cover border border-white/10"
+                />
               ) : (
-                <div className="h-16 w-16 rounded-full bg-gray-200 flex items-center justify-center shadow-sm">
-                  <span className="text-xl font-bold text-gray-500">{candidate.user.name.charAt(0)}</span>
+                <div className="h-14 w-14 sm:h-16 sm:w-16 shrink-0 rounded-full bg-white/10 flex items-center justify-center">
+                  <span className="text-lg font-bold text-gray-300">{candidate.user.name.charAt(0)}</span>
                 </div>
               )}
-              
-              <div>
-                <h3 className="text-xl font-bold text-gray-900">{candidate.user.name}</h3>
+
+              <div className="min-w-0 flex-1">
+                <h3 className="text-lg sm:text-xl font-bold text-white break-words">{candidate.user.name}</h3>
                 {candidate.party ? (
-                  <div className="flex items-center mt-1">
+                  <div className="flex items-center gap-2 mt-1 flex-wrap">
                     {candidate.party.logoUrl && (
-                      <img src={candidate.party.logoUrl} alt={candidate.party.name} className="h-5 w-5 rounded-full mr-2" />
+                      <img
+                        src={candidate.party.logoUrl}
+                        alt=""
+                        className="h-5 w-5 rounded-full shrink-0 border border-white/10"
+                      />
                     )}
-                    <span className="text-sm font-medium text-gray-600">{candidate.party.name}</span>
+                    <span className="text-sm font-medium text-gray-400 break-words">{candidate.party.name}</span>
                   </div>
                 ) : (
                   <span className="text-sm font-medium text-gray-500 mt-1 block">Independent Candidate</span>
@@ -162,27 +184,31 @@ export default function CastVote() {
       </div>
 
       {candidates.length === 0 && (
-        <div className="text-center py-12 bg-white rounded-lg border border-gray-200">
-          <AlertTriangle className="mx-auto h-12 w-12 text-yellow-400 mb-3" />
-          <h3 className="text-lg font-medium text-gray-900">No Candidates Found</h3>
-          <p className="mt-1 text-sm text-gray-500">There are no candidates registered in your city for this election.</p>
+        <div className="text-center py-12 rounded-2xl border border-white/10 bg-white/[0.03] px-4">
+          <AlertTriangle className="mx-auto h-12 w-12 text-amber-400 mb-3" />
+          <h3 className="text-lg font-medium text-white">No Candidates Found</h3>
+          <p className="mt-1 text-sm text-gray-400 max-w-md mx-auto">
+            There are no candidates registered for this election.
+          </p>
         </div>
       )}
 
-      <div className="mt-10 border-t border-gray-200 pt-6 flex justify-end">
+      <div className="mt-8 sm:mt-10 border-t border-white/10 pt-6 flex flex-col-reverse sm:flex-row gap-3 sm:justify-end sm:gap-4">
         <button
+          type="button"
           onClick={() => navigate('/voter/dashboard')}
-          className="mr-4 bg-white py-3 px-6 border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+          className="min-h-[48px] w-full sm:w-auto sm:min-w-[7rem] rounded-xl border border-white/15 bg-white/[0.06] px-6 py-3 text-sm font-semibold text-gray-200 hover:bg-white/10 transition-colors"
         >
           Cancel
         </button>
         <button
+          type="button"
           onClick={handleCastVote}
           disabled={!selectedCandidate || submitting}
-          className={`py-3 px-8 border border-transparent rounded-lg shadow-sm text-sm font-bold text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all ${
+          className={`min-h-[48px] w-full sm:w-auto sm:min-w-[12rem] rounded-xl px-6 py-3 text-sm font-bold text-white transition-all ${
             !selectedCandidate || submitting
-              ? 'bg-blue-400 cursor-not-allowed opacity-70'
-              : 'bg-blue-600 hover:bg-blue-700 hover:shadow-md transform hover:-translate-y-0.5'
+              ? 'bg-primary-800/50 cursor-not-allowed opacity-70'
+              : 'bg-primary-600 hover:bg-primary-500 shadow-lg shadow-primary-900/30'
           }`}
         >
           {submitting ? 'Submitting secure vote...' : 'Cast Secure Vote'}

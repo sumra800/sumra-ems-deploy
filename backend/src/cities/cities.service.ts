@@ -14,14 +14,22 @@ export class CitiesService {
 
   async create(createCityDto: CreateCityDto): Promise<City> {
     const name = createCityDto.name.trim();
+    const province = createCityDto.province.trim();
     const existingCity = await this.citiesRepository.findOne({ where: { name: ILike(name) } });
     if (existingCity) {
       throw new ConflictException('City already exists');
     }
 
+    const existingProvinceCity = await this.citiesRepository.findOne({
+      where: { province: ILike(province) },
+    });
+    if (!existingProvinceCity) {
+      throw new NotFoundException('Province does not exist. Please select an existing province.');
+    }
+
     return this.citiesRepository.save(this.citiesRepository.create({
       name,
-      province: createCityDto.province.trim(),
+      province,
     }));
   }
 
