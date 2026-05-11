@@ -12,8 +12,8 @@ import { Election } from '../elections/entities/election.entity';
 import { Vote } from '../votes/entities/vote.entity';
 
 const ADMIN_NAME = process.env.ADMIN_NAME || 'Admin';
-const ADMIN_CNIC = process.env.ADMIN_CNIC || '35401-9703523-4';
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? 'Ronaldhino12'; // Default password if not set, but should be overridden in production
+const ADMIN_CNIC = process.env.ADMIN_CNIC || '10000-0000000-0';
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? 'meowmeow'; // Default password if not set, but should be overridden in production
 const RESET_PASSWORD = process.env.ADMIN_PASSWORD !== undefined;
 
 async function seedAdmin() {
