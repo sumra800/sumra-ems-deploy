@@ -36,6 +36,7 @@ async function seedAdmin() {
   const existingAdmin = await userRepository.findOne({ where: { cnic: ADMIN_CNIC } });
   const hashedPassword = await bcrypt.hash(ADMIN_PASSWORD, 10);
 
+
   if (existingAdmin) {
     let updated = false;
 
