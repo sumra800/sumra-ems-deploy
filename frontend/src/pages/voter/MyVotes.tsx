@@ -105,12 +105,11 @@ export default function MyVotes() {
                   </div>
                 </div>
 
-                <div className="mt-6 pt-4 border-t border-white/5 flex items-center justify-between">
+                <div className="mt-6 pt-4 border-t border-white/5">
                   <div className="flex items-center text-xs text-gray-500">
                     <Calendar className="flex-shrink-0 mr-1.5 h-3.5 w-3.5" />
                     {new Date(vote.timestamp).toLocaleDateString()}
                   </div>
-                  <span className="text-[10px] font-mono text-gray-600">ID: {vote.id.split('-')[0]}...</span>
                 </div>
               </div>
             </div>
