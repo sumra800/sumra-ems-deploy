@@ -15,9 +15,9 @@ export const LEADER_NAME_REGEX = /^[A-Za-z]+(?: [A-Za-z]+)*$/;
 export const LEADER_NAME_MESSAGE =
   'Leader name must contain letters only with spaces between words, or leave the field blank.';
 
-export const ELECTION_TITLE_REGEX = /^General Elections \d{4}$/;
+export const ELECTION_TITLE_REGEX = /^General Elections? \d{4}$/i;
 export const ELECTION_TITLE_MESSAGE =
-  'Use the format General Elections followed by a four-digit year — for example General Elections 2026.';
+  'Use the format General Elections or General Election followed by a four-digit year — for example General Elections 2026. Lowercase first letters are also accepted.';
 
 const NAME_LEN_MIN = 2;
 const NAME_LEN_MAX = 100;

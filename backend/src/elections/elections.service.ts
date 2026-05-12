@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Election, ElectionStatus } from './entities/election.entity';
 import { Vote } from '../votes/entities/vote.entity';
-import { CreateElectionDto } from './dto/create-election.dto';
+import { CreateElectionDto, normalizeElectionTitle } from './dto/create-election.dto';
 import { UpdateElectionDto } from './dto/update-election.dto';
 
 @Injectable()
@@ -18,6 +18,7 @@ export class ElectionsService {
   async create(createElectionDto: CreateElectionDto): Promise<Election> {
     const election = this.electionsRepository.create({
       ...createElectionDto,
+      title: normalizeElectionTitle(createElectionDto.title),
       startTime: createElectionDto.startTime ? new Date(createElectionDto.startTime) : undefined,
       endTime: createElectionDto.endTime ? new Date(createElectionDto.endTime) : undefined,
     });
@@ -36,6 +37,9 @@ export class ElectionsService {
 
   async update(id: string, updateElectionDto: UpdateElectionDto): Promise<Election> {
     const updateData: Partial<Election> = { ...updateElectionDto as any };
+    if (updateElectionDto.title) {
+      updateData.title = normalizeElectionTitle(updateElectionDto.title as string);
+    }
     if (updateElectionDto.startTime) updateData.startTime = new Date(updateElectionDto.startTime);
     if (updateElectionDto.endTime) updateData.endTime = new Date(updateElectionDto.endTime);
     await this.electionsRepository.update(id, updateData);
