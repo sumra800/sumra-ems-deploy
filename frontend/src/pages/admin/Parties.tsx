@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { api } from '../../api/axios';
 import { Plus, Trash2, Users } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -48,6 +48,17 @@ export default function Parties() {
   const [symbol, setSymbol] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Edit form state
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editLeaderName, setEditLeaderName] = useState('');
+  const [editSymbol, setEditSymbol] = useState<File | null>(null);
+  const [isUpdating, setIsUpdating] = useState(false);
+
+  // File input refs
+  const createSymbolRef = useRef<HTMLInputElement>(null);
+  const editSymbolRef = useRef<HTMLInputElement>(null);
+
   const fetchParties = async () => {
     try {
       const res = await api.get('/parties');
@@ -90,6 +101,7 @@ export default function Parties() {
       setName('');
       setLeaderName('');
       setSymbol(null);
+      if (createSymbolRef.current) createSymbolRef.current.value = '';
       fetchParties();
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Failed to create');
@@ -112,6 +124,58 @@ export default function Parties() {
       setParties(parties.filter(p => p.id !== id));
     } catch (error) {
       toast.error('Failed to delete');
+    }
+  };
+
+  const startEditing = (party: Party) => {
+    setEditingId(party.id);
+    setEditName(party.name);
+    setEditLeaderName(party.leaderName || '');
+    setEditSymbol(null);
+  };
+
+  const cancelEditing = () => {
+    setEditingId(null);
+    setEditName('');
+    setEditLeaderName('');
+    setEditSymbol(null);
+  };
+
+  const handleUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingId) return;
+
+    const trimmedName = editName.trim();
+    const trimmedLeaderName = editLeaderName.trim();
+    const formatError = validatePartyFields(trimmedName, trimmedLeaderName);
+    if (formatError) {
+      await alert({ title: 'Invalid format', message: formatError });
+      return;
+    }
+
+    setIsUpdating(true);
+    try {
+      const formData = new FormData();
+      formData.append('name', trimmedName);
+      if (trimmedLeaderName) {
+        formData.append('leaderName', trimmedLeaderName);
+      }
+      if (editSymbol) {
+        formData.append('symbol', editSymbol);
+      }
+
+      const response = await api.patch(`/parties/${editingId}`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+
+      toast.success('Party updated!');
+      setParties(parties.map(p => p.id === editingId ? response.data : p));
+      if (editSymbolRef.current) editSymbolRef.current.value = '';
+      cancelEditing();
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Failed to update party');
+    } finally {
+      setIsUpdating(false);
     }
   };
 
@@ -156,6 +220,7 @@ export default function Parties() {
             </label>
             <div className={partySymbolFileWrapClass}>
               <input
+                ref={createSymbolRef}
                 type="file"
                 id="symbol"
                 accept={PROFILE_PHOTO_ACCEPT}
@@ -190,27 +255,106 @@ export default function Parties() {
             <div className="p-8 text-center text-gray-500">No parties found.</div>
           ) : (
             parties.map((party) => (
-              <li key={party.id} className="px-4 sm:px-6 py-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between hover:bg-white/5 transition-colors">
-                <div className="flex items-center min-w-0">
-                  <div className="h-10 w-10 rounded-xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center mr-4">
-                    {party.logoUrl ? (
-                      <img src={party.logoUrl} alt={`${party.name} symbol`} className="h-8 w-8 rounded-lg object-cover" />
-                    ) : (
-                      <Users className="h-5 w-5 text-orange-400" />
-                    )}
+              <li key={party.id} className="px-4 sm:px-6 py-5 hover:bg-white/5 transition-colors">
+                {editingId === party.id ? (
+                  // Edit Form
+                  <form onSubmit={handleUpdate} className="space-y-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:items-end">
+                      <div className="flex flex-col gap-1.5 flex-1 w-full min-w-0">
+                        <label className={partyLabelClass}>
+                          Party Name
+                        </label>
+                        <input
+                          type="text"
+                          value={editName}
+                          onChange={(e) => setEditName(e.target.value)}
+                          className={partyTextInputClass}
+                        />
+                      </div>
+                      <div className="flex flex-col gap-1.5 flex-1 w-full min-w-0">
+                        <label className={partyLabelClass}>
+                          Leader Name <span className="text-gray-500 font-normal">(Optional)</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={editLeaderName}
+                          onChange={(e) => setEditLeaderName(e.target.value)}
+                          className={partyTextInputClass}
+                        />
+                      </div>
+                      <div className="flex flex-col gap-1.5 flex-1 w-full min-w-0">
+                        <label className={partyLabelClass}>
+                          Party Symbol
+                        </label>
+                        <div className={partySymbolFileWrapClass}>
+                          <input
+                            ref={editSymbolRef}
+                            type="file"
+                            accept={PROFILE_PHOTO_ACCEPT}
+                            onChange={(e) => setEditSymbol(e.target.files?.[0] ?? null)}
+                            className={partySymbolFileInnerClass}
+                          />
+                        </div>
+                      </div>
+                      <div className="flex flex-col gap-1.5 flex-1 w-full min-w-0">
+                        <span className={partyLabelClass}>
+                          <span className="sr-only">Submit</span>
+                        </span>
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={cancelEditing}
+                            className="flex-1 btn-secondary"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            type="submit"
+                            disabled={isUpdating}
+                            className={`${partySubmitClass} flex-1`}
+                          >
+                            {isUpdating ? 'Updating...' : 'Update'}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </form>
+                ) : (
+                  // Display Mode
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex items-center min-w-0">
+                      <div className="h-10 w-10 rounded-xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center mr-4">
+                        {party.logoUrl ? (
+                          <img src={party.logoUrl} alt={`${party.name} symbol`} className="h-8 w-8 rounded-lg object-cover" />
+                        ) : (
+                          <Users className="h-5 w-5 text-orange-400" />
+                        )}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-base font-bold text-white break-words">{party.name}</p>
+                        {party.leaderName && <p className="text-sm text-gray-400 break-words">Leader: {party.leaderName}</p>}
+                      </div>
+                    </div>
+                    <div className="flex gap-2 self-end sm:self-auto">
+                      <button
+                        type="button"
+                        onClick={() => startEditing(party)}
+                        className="shrink-0 text-gray-500 hover:text-orange-400 p-2 rounded-lg hover:bg-orange-400/10 transition-colors min-h-[44px] min-w-[44px] inline-flex items-center justify-center"
+                      >
+                        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(party.id)}
+                        className="shrink-0 text-gray-500 hover:text-red-400 p-2 rounded-lg hover:bg-red-400/10 transition-colors min-h-[44px] min-w-[44px] inline-flex items-center justify-center"
+                      >
+                        <Trash2 className="h-5 w-5" />
+                      </button>
+                    </div>
                   </div>
-                  <div className="min-w-0">
-                    <p className="text-base font-bold text-white break-words">{party.name}</p>
-                    {party.leaderName && <p className="text-sm text-gray-400 break-words">Leader: {party.leaderName}</p>}
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => handleDelete(party.id)}
-                  className="self-end sm:self-auto shrink-0 text-gray-500 hover:text-red-400 p-2 rounded-lg hover:bg-red-400/10 transition-colors min-h-[44px] min-w-[44px] inline-flex items-center justify-center"
-                >
-                  <Trash2 className="h-5 w-5" />
-                </button>
+                )}
               </li>
             ))
           )}

@@ -17,6 +17,12 @@ export class CandidatesController {
     private readonly cloudinaryService: CloudinaryService,
   ) {}
 
+  private extractPublicIdFromUrl(url: string): string | null {
+    // Cloudinary URL format: https://res.cloudinary.com/{cloud_name}/image/upload/v{version}/{public_id}.{format}
+    const match = url.match(/\/upload\/(?:v\d+\/)?(.+)\.[a-z]+$/);
+    return match ? match[1] : null;
+  }
+
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
   @Post()
@@ -54,6 +60,18 @@ export class CandidatesController {
     if (symbol) {
       assertAllowedImageMime(symbol.mimetype, 'Candidate symbol');
     }
+
+    // Get current candidate to check for existing image
+    const currentCandidate = await this.candidatesService.findOne(id);
+
+    // If uploading new image and there's an existing one, delete the old one
+    if (symbol && currentCandidate.photoUrl) {
+      const publicId = this.extractPublicIdFromUrl(currentCandidate.photoUrl);
+      if (publicId) {
+        await this.cloudinaryService.deleteImage(publicId);
+      }
+    }
+
     const uploadResult = symbol
       ? await this.cloudinaryService.uploadImage(symbol.buffer, symbol.mimetype)
       : undefined;
@@ -66,7 +84,18 @@ export class CandidatesController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
   @Delete(':id')
-  remove(@Param('id') id: string) {
+  async remove(@Param('id') id: string) {
+    // Get candidate to check for image
+    const candidate = await this.candidatesService.findOne(id);
+
+    // Delete image from Cloudinary if it exists
+    if (candidate.photoUrl) {
+      const publicId = this.extractPublicIdFromUrl(candidate.photoUrl);
+      if (publicId) {
+        await this.cloudinaryService.deleteImage(publicId);
+      }
+    }
+
     return this.candidatesService.remove(id);
   }
 }

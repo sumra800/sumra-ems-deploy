@@ -17,6 +17,12 @@ export class PartiesController {
     private readonly cloudinaryService: CloudinaryService,
   ) {}
 
+  private extractPublicIdFromUrl(url: string): string | null {
+    // Cloudinary URL format: https://res.cloudinary.com/{cloud_name}/image/upload/v{version}/{public_id}.{format}
+    const match = url.match(/\/upload\/(?:v\d+\/)?(.+)\.[a-z]+$/);
+    return match ? match[1] : null;
+  }
+
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
   @Post()
@@ -54,6 +60,18 @@ export class PartiesController {
     if (symbol) {
       assertAllowedImageMime(symbol.mimetype, 'Party symbol');
     }
+
+    // Get current party to check for existing image
+    const currentParty = await this.partiesService.findOne(id);
+
+    // If uploading new image and there's an existing one, delete the old one
+    if (symbol && currentParty.logoUrl) {
+      const publicId = this.extractPublicIdFromUrl(currentParty.logoUrl);
+      if (publicId) {
+        await this.cloudinaryService.deleteImage(publicId);
+      }
+    }
+
     const uploadResult = symbol
       ? await this.cloudinaryService.uploadImage(symbol.buffer, symbol.mimetype)
       : undefined;
@@ -66,7 +84,18 @@ export class PartiesController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
   @Delete(':id')
-  remove(@Param('id') id: string) {
+  async remove(@Param('id') id: string) {
+    // Get party to check for image
+    const party = await this.partiesService.findOne(id);
+
+    // Delete image from Cloudinary if it exists
+    if (party.logoUrl) {
+      const publicId = this.extractPublicIdFromUrl(party.logoUrl);
+      if (publicId) {
+        await this.cloudinaryService.deleteImage(publicId);
+      }
+    }
+
     return this.partiesService.remove(id);
   }
 }
